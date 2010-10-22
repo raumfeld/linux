@@ -159,7 +159,7 @@ static void set_palette(struct vc_data *vc);
 static int printable;		/* Is console ready for printing? */
 int default_utf8 = true;
 module_param(default_utf8, int, S_IRUGO | S_IWUSR);
-int global_cursor_default = -1;
+int global_cursor_default = 0;
 module_param(global_cursor_default, int, S_IRUGO | S_IWUSR);
 
 static int cur_default = CUR_DEFAULT;
