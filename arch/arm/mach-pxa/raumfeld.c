@@ -596,7 +596,7 @@ static struct pxafb_mode_info sharp_lq043t3dx02_mode = {
 static struct pxafb_mach_info raumfeld_sharp_lcd_info = {
 	.modes		= &sharp_lq043t3dx02_mode,
 	.num_modes	= 1,
-	.video_mem_size = 0x400000,
+	.video_mem_size = 0x1000000,
 	.lcd_conn	= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
 #ifdef CONFIG_PXA3XX_GCU
 	.acceleration_enabled = 1,
