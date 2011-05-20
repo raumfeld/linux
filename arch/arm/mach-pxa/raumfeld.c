@@ -855,7 +855,7 @@ struct regulator_init_data audio_va_initdata = {
 	},
 };
 
-static struct fixed_voltage_config audio_va_config = {
+static struct fixed_voltage_config cs4270_va_config = {
 	.supply_name		= "audio_va",
 	.microvolts		= 5000000,
 	.gpio			= GPIO_AUDIO_VA_ENABLE,
@@ -864,47 +864,114 @@ static struct fixed_voltage_config audio_va_config = {
 	.init_data		= &audio_va_initdata,
 };
 
-static struct platform_device audio_va_device = {
+static struct platform_device cs4270_va_device = {
 	.name	= "reg-fixed-voltage",
 	.id	= 0,
 	.dev	= {
-		.platform_data = &audio_va_config,
+		.platform_data = &cs4270_va_config,
 	},
 };
 
 /* Dummy supplies for Codec's VD/VLC */
 
-static struct regulator_consumer_supply audio_dummy_supplies[] = {
+static struct regulator_consumer_supply cs4270_dummy_supplies[] = {
 	REGULATOR_SUPPLY("vd", "0-0048"),
 	REGULATOR_SUPPLY("vlc", "0-0048"),
 };
 
-struct regulator_init_data audio_dummy_initdata = {
-	.consumer_supplies = audio_dummy_supplies,
-	.num_consumer_supplies = ARRAY_SIZE(audio_dummy_supplies),
+struct regulator_init_data cs4270_dummy_initdata = {
+	.consumer_supplies = cs4270_dummy_supplies,
+	.num_consumer_supplies = ARRAY_SIZE(cs4270_dummy_supplies),
 	.constraints = {
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 	},
 };
 
-static struct fixed_voltage_config audio_dummy_config = {
-	.supply_name		= "audio_vd",
+static struct fixed_voltage_config cs4270_dummy_config = {
+	.supply_name		= "cs4270_vd",
 	.microvolts		= 3300000,
 	.gpio			= -1,
-	.init_data		= &audio_dummy_initdata,
+	.init_data		= &cs4270_dummy_initdata,
 };
 
-static struct platform_device audio_supply_dummy_device = {
+static struct platform_device cs4270_supply_dummy_device = {
 	.name	= "reg-fixed-voltage",
 	.id	= 1,
 	.dev	= {
-		.platform_data = &audio_dummy_config,
+		.platform_data = &cs4270_dummy_config,
 	},
 };
 
-static struct platform_device *audio_regulator_devices[] = {
-	&audio_va_device,
-	&audio_supply_dummy_device,
+static struct platform_device *cs4270_regulator_devices[] = {
+	&cs4270_va_device,
+	&cs4270_supply_dummy_device,
+};
+
+/* Fixed regulator for sta32x Vdda supply
+ * 0-001a maps to the sta32x codec devname (derived from i2c bus num + addr)
+ */
+
+static struct regulator_consumer_supply sta32x_va_consumer_supply =
+	REGULATOR_SUPPLY("Vdda", "0-001a");
+
+struct regulator_init_data sta32x_va_initdata = {
+	.consumer_supplies = &sta32x_va_consumer_supply,
+	.num_consumer_supplies = 1,
+	.constraints = {
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
+};
+
+static struct fixed_voltage_config sta32x_va_config = {
+	.supply_name		= "audio_va",
+	.microvolts		= 3300000,
+	.gpio			= GPIO_AUDIO_VA_ENABLE,
+	.enable_high		= 1,
+	.enabled_at_boot	= 0,
+	.init_data		= &sta32x_va_initdata,
+};
+
+static struct platform_device sta32x_va_device = {
+	.name	= "reg-fixed-voltage",
+	.id	= 0,
+	.dev	= {
+		.platform_data = &sta32x_va_config,
+	},
+};
+
+/* Dummy supplies for sta32x codec's Vdd3/Vcc */
+
+static struct regulator_consumer_supply sta32x_dummy_supplies[] = {
+	REGULATOR_SUPPLY("Vdd3", "0-001a"),
+	REGULATOR_SUPPLY("Vcc", "0-001a"),
+};
+
+struct regulator_init_data sta32x_dummy_initdata = {
+	.consumer_supplies = sta32x_dummy_supplies,
+	.num_consumer_supplies = ARRAY_SIZE(sta32x_dummy_supplies),
+	.constraints = {
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
+};
+
+static struct fixed_voltage_config sta32x_dummy_config = {
+	.supply_name	    = "audio_vd",
+	.microvolts	     = 3300000,
+	.gpio		   = -1,
+	.init_data	      = &sta32x_dummy_initdata,
+};
+
+static struct platform_device sta32x_supply_dummy_device = {
+	.name   = "reg-fixed-voltage",
+	.id     = 1,
+	.dev    = {
+		.platform_data = &sta32x_dummy_config,
+	},
+};
+
+static struct platform_device *sta32x_regulator_devices[] = {
+	&sta32x_va_device,
+	&sta32x_supply_dummy_device,
 };
 
 /**
@@ -953,6 +1020,11 @@ static struct i2c_board_info raumfeld_connector_i2c_board_info __initdata = {
 	.addr	= 0x48,
 };
 
+static struct i2c_board_info raumfeld_ddx_i2c_board_info __initdata = {
+	.type   = "sta326",
+	.addr   = 0x1a,
+};
+
 static struct eeti_ts_platform_data eeti_ts_pdata = {
 	.irq_active_high = 1,
 	.irq_gpio = GPIO_TOUCH_IRQ,
@@ -992,7 +1064,10 @@ static void __init raumfeld_audio_init(void)
 	else
 		gpio_direction_output(GPIO_MCLK_RESET, 1);
 
-	platform_add_devices(ARRAY_AND_SIZE(audio_regulator_devices));
+	if ((system_rev & 0xff00) == 0x0400)
+		platform_add_devices(ARRAY_AND_SIZE(sta32x_regulator_devices));
+	else
+		platform_add_devices(ARRAY_AND_SIZE(cs4270_regulator_devices));
 }
 
 static void __init raumfeld_common_init(void)
@@ -1065,7 +1140,11 @@ static void __init raumfeld_connector_init(void)
 {
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(raumfeld_connector_pin_config));
 	spi_register_board_info(ARRAY_AND_SIZE(connector_spi_devices));
-	i2c_register_board_info(0, &raumfeld_connector_i2c_board_info, 1);
+
+	if ((system_rev & 0xff00) == 0x0400)
+		i2c_register_board_info(0, &raumfeld_ddx_i2c_board_info, 1);
+	else
+		i2c_register_board_info(0, &raumfeld_connector_i2c_board_info, 1);
 
 	platform_device_register(&smc91x_device);
 
@@ -1077,7 +1156,11 @@ static void __init raumfeld_speaker_init(void)
 {
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(raumfeld_speaker_pin_config));
 	spi_register_board_info(ARRAY_AND_SIZE(speaker_spi_devices));
-	i2c_register_board_info(0, &raumfeld_connector_i2c_board_info, 1);
+
+	if ((system_rev & 0xff00) == 0x0400)
+		i2c_register_board_info(0, &raumfeld_ddx_i2c_board_info, 1);
+	else
+		i2c_register_board_info(0, &raumfeld_connector_i2c_board_info, 1);
 
 	platform_device_register(&smc91x_device);
 	platform_device_register(&rotary_encoder_device);
