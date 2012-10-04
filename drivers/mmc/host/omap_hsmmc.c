@@ -1733,6 +1733,7 @@ static int __devinit omap_hsmmc_probe(struct platform_device *pdev)
 			const u16 *offsetp = match->data;
 			pdata->reg_offset = *offsetp;
 		}
+		pdev->dev.platform_data = pdata;
 	}
 
 	if (pdata == NULL) {
