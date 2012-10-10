@@ -2518,6 +2518,35 @@ static struct omap_hwmod_ocp_if am33xx_l4_ls__elm = {
 	.user		= OCP_USER_MPU,
 };
 
+
+/* mdio class */
+static struct omap_hwmod_class am33xx_mdio_hwmod_class = {
+        .name           = "davinci_mdio",
+};
+
+struct omap_hwmod_addr_space am33xx_mdio_addr_space[] = {
+        {
+                .pa_start       = 0x4A101000,
+                .pa_end         = 0x4A101000 + SZ_256 - 1,
+                .flags          = ADDR_MAP_ON_INIT,
+        },
+        { }
+};
+
+static struct omap_hwmod am33xx_mdio_hwmod = {
+        .name           = "davinci_mdio",
+        .class          = &am33xx_mdio_hwmod_class,
+        .clkdm_name     = "cpsw_125mhz_clkdm",
+        .main_clk       = "cpsw_125mhz_gclk",
+};
+
+struct omap_hwmod_ocp_if am33xx_cpgmac0__mdio = {
+        .master         = &am33xx_cpgmac0_hwmod,
+        .slave          = &am33xx_mdio_hwmod,
+        .addr           = am33xx_mdio_addr_space,
+        .user           = OCP_USER_MPU,
+};
+
 /*
  * Splitting the resources to handle access of PWMSS config space
  * and module specific part independently
@@ -3371,6 +3400,7 @@ static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l3_main__tptc2,
 	&am33xx_l3_s__usbss,
 	&am33xx_l4_hs__cpgmac0,
+	&am33xx_cpgmac0__mdio,
 	NULL,
 };
 
