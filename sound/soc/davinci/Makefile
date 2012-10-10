@@ -12,8 +12,12 @@ obj-$(CONFIG_SND_DAVINCI_SOC_VCIF) += snd-soc-davinci-vcif.o
 # DAVINCI Machine Support
 snd-soc-evm-objs := davinci-evm.o
 
+# AM33xx Machine Support
+snd-soc-s800-objs := am33xx-s800.o
+
 obj-$(CONFIG_SND_DAVINCI_SOC_EVM) += snd-soc-evm.o
 obj-$(CONFIG_SND_AM33XX_SOC_EVM) += snd-soc-evm.o
 obj-$(CONFIG_SND_DM6467_SOC_EVM) += snd-soc-evm.o
 obj-$(CONFIG_SND_DA830_SOC_EVM) += snd-soc-evm.o
 obj-$(CONFIG_SND_DA850_SOC_EVM) += snd-soc-evm.o
+obj-$(CONFIG_SND_AM335X_SOC_S800) += snd-soc-s800.o
