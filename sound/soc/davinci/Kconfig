@@ -80,3 +80,17 @@ config  SND_DA850_SOC_EVM
 	  Say Y if you want to add support for SoC audio on TI
 	  DA850/OMAP-L138 EVM
 
+config  SND_AM335X_SOC_S800
+	tristate "SoC Audio support for SUE S800 based devices"
+	depends on SND_DAVINCI_SOC
+	select SND_DAVINCI_SOC_MCASP
+	select SND_SOC_CS4271
+	select SND_SOC_AK4104
+	select SND_SOC_AK5386
+	select SND_SOC_TAS5086
+	select SND_SOC_ADAU1701
+	help
+	  Say Y if you want to add support for SoC audio on AM335X
+	  based SUE (StreamUnlimited) S800  devices, for example
+	  Raumfeld connector 2.
+
