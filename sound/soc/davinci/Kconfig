@@ -6,6 +6,13 @@ config SND_DAVINCI_SOC
 	  the DAVINCI AC97 or I2S interface. You will also need
 	  to select the audio interfaces to support below.
 
+config SND_AM33XX_SOC
+	tristate "SoC Audio for the AM33XX chip"
+	depends on SOC_AM33XX
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the AM33XX digial audio interfaces.
+
 config SND_DAVINCI_SOC_I2S
 	tristate
 
