@@ -27,6 +27,7 @@
 #include <linux/spi/spi.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <linux/regulator/consumer.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
@@ -169,6 +170,8 @@ struct cs4271_private {
 	int				gpio_disable;
 	/* enable soft reset workaround */
 	bool				enable_soft_reset;
+	/* power supply */
+	struct regulator		*vd_supply;
 };
 
 /*
@@ -463,17 +466,36 @@ static struct snd_soc_dai_driver cs4271_dai = {
 static int cs4271_soc_suspend(struct snd_soc_codec *codec)
 {
 	int ret;
+	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
+
 	/* Set power-down bit */
 	ret = snd_soc_update_bits(codec, CS4271_MODE2, CS4271_MODE2_PDN,
 				  CS4271_MODE2_PDN);
 	if (ret < 0)
 		return ret;
-	return 0;
+
+	if (cs4271->vd_supply) {
+		ret = regulator_disable(cs4271->vd_supply);
+		if (ret < 0)
+			dev_err(codec->dev, "cannot disable regulator (%d)\n",
+				ret);
+	}
+
+	return ret;
 }
 
 static int cs4271_soc_resume(struct snd_soc_codec *codec)
 {
 	int ret;
+	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
+
+	if (cs4271->vd_supply) {
+		ret = regulator_enable(cs4271->vd_supply);
+		if (ret < 0)
+			dev_err(codec->dev, "cannot enable regulator (%d)\n",
+				ret);
+	}
+
 	/* Restore codec state */
 	ret = snd_soc_cache_sync(codec);
 	if (ret < 0)
@@ -504,6 +526,18 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 	int ret;
 	int gpio_nreset = -EINVAL;
 	bool amutec_eq_bmutec = false;
+
+	cs4271->vd_supply = devm_regulator_get(codec->dev, "vd");
+	if (IS_ERR(cs4271->vd_supply)) {
+		dev_warn(codec->dev, "missing vd supply\n");
+		cs4271->vd_supply = NULL;
+	} else {
+		ret = regulator_enable(cs4271->vd_supply);
+		if (ret < 0) {
+			dev_err(codec->dev, "unable to enable regulator\n");
+			return ret;
+		}
+	}
 
 #ifdef CONFIG_OF
 	if (of_match_device(cs4271_dt_ids, codec->dev)) {
