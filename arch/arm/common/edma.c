@@ -1619,7 +1619,7 @@ static int __init edma_probe(struct platform_device *pdev)
 
 	if (node) {
 		pdata = devm_kzalloc(dev,
-				     sizeof(struct edma_soc_info),
+				     EDMA_MAX_CC * sizeof(struct edma_soc_info),
 				     GFP_KERNEL);
 		edma_of_parse_dt(dev, node, pdata);
 		info = &pdata;
