@@ -63,5 +63,6 @@ struct omap_nand_platform_data {
 
 	/* for passing the partitions */
 	struct device_node	*of_node;
+	bool			is_elm_used;
 };
 #endif
