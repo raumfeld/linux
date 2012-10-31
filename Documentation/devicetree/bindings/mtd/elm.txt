@@ -1,0 +1,18 @@
+Error location module
+
+Required properties:
+- compatible: Must be "ti,elm"
+- reg: physical base address and size of the registers map.
+- interrupts: Interrupt number for the elm.
+- interrupt-parent: The parent interrupt controller
+
+Optional properties:
+- ti,hwmods: Name of the hwmod associated to the elm
+
+Example:
+elm: elm@0 {
+	compatible	= "ti,elm";
+	reg = <0x48080000 0x2000>;
+	interrupt-parent = <&intc>;
+	interrupts = <4>;
+};
