@@ -42,6 +42,33 @@
 #include <linux/pm_runtime.h>
 #include <linux/platform_data/mmc-omap.h>
 
+
+
+#include <linux/clk.h>
+#include <linux/gpio.h>
+static void apply_clk_hack(struct device *dev)
+{
+	struct clk *ck_32;
+	int gpio = 64;
+
+	printk("%s()\n", __func__);
+	devm_gpio_request_one(dev, gpio, GPIOF_OUT_INIT_LOW, "wifi-pdn");
+	gpio_set_value(gpio, 0);
+	udelay(1000);
+
+	ck_32 = clk_get(NULL, "clk_32768_ck");
+        if (IS_ERR(ck_32)) {
+		printk(KERN_ERR "%s() :: Cannot clk_get()!\n", __func__);
+		return;
+        }
+
+	clk_enable(ck_32);
+	udelay(1000);
+	gpio_set_value(gpio, 1);
+}
+
+
+
 /* OMAP HSMMC Host Controller Registers */
 #define OMAP_HSMMC_SYSSTATUS	0x0014
 #define OMAP_HSMMC_CON		0x002C
@@ -1759,6 +1786,8 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	dma_cap_mask_t mask;
 	unsigned tx_req, rx_req;
 	struct pinctrl *pinctrl;
+
+	apply_clk_hack(&pdev->dev);
 
 	match = of_match_device(of_match_ptr(omap_mmc_of_match), &pdev->dev);
 	if (match) {
