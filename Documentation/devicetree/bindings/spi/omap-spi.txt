@@ -15,9 +15,9 @@ Optional properties:
 	1:1 with the ordered pairs in dmas. The string naming is
 	to be "rxN" and "txN" for RX and TX requests,
 	respectively, where N equals the chip select number.
-- ti,pindir-d0-in-d1-out: Select the D0 pin as input and D1 as
-			  output. The default is D0 as output and
-			  D1 as input.
+- ti,pindir-d0-out-d1-in: Select the D0 pin as output and D1 as
+			  input. The default is D0 as input and
+			  D1 as output.
 
 Examples:
 
