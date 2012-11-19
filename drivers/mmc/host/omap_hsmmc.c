@@ -1787,6 +1787,9 @@ static struct omap_mmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
 	if (of_find_property(np, "ti,dual-volt", NULL))
 		pdata->controller_flags |= OMAP_HSMMC_SUPPORTS_DUAL_VOLT;
 
+	if (of_find_property(np, "ti,swakeup-not-implemented", NULL))
+		pdata->controller_flags |= OMAP_HSMMC_SWAKEUP_NOT_IMPLEMENTED;
+
 	/* This driver only supports 1 slot */
 	pdata->nr_slots = 1;
 	pdata->slots[0].switch_pin = of_get_named_gpio(np, "cd-gpios", 0);
