@@ -32,6 +32,7 @@
 #include "clock2xxx.h"
 #include "cm2xxx_3xxx.h"
 #include "prm2xxx_3xxx.h"
+#include "prm33xx.h"
 #include "prm44xx.h"
 #include "prminst44xx.h"
 #include "cminst44xx.h"
@@ -72,6 +73,8 @@ void omap_prcm_restart(char mode, const char *cmd)
 		omap3_ctrl_write_boot_mode((cmd ? (u8)*cmd : 0));
 	} else if (cpu_is_omap44xx()) {
 		omap4_prminst_global_warm_sw_reset(); /* never returns */
+	} else if (soc_is_am33xx()) {
+		am33xx_prm_global_warm_sw_reset();      /* never returns */
 	} else {
 		WARN_ON(1);
 	}
