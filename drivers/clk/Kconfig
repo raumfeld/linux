@@ -53,4 +53,9 @@ config COMMON_CLK_MAX77686
 	---help---
 	  This driver supports Maxim 77686 crystal oscillator clock. 
 
+config COMMON_CLK_SI5351
+	tristate "Clock driver for Silicon Labs 5351"
+	---help---
+	  This driver supports Silicon Labs Si5351 I2c chip.
+
 endmenu
