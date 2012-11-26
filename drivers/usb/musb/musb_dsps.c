@@ -562,7 +562,7 @@ static int __devinit dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 
 		of_property_read_u32(np, "num-eps", (u32 *)&config->num_eps);
 		of_property_read_u32(np, "ram-bits", (u32 *)&config->ram_bits);
-		sprintf(res_name, "port%d-mode", id);
+		snprintf(res_name, sizeof(res_name), "port%d-mode", id);
 		of_property_read_u32(np, res_name, (u32 *)&pdata->mode);
 		of_property_read_u32(np, "power", (u32 *)&pdata->power);
 		config->multipoint = of_property_read_bool(np, "multipoint");
