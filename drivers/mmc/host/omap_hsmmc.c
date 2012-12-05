@@ -1833,6 +1833,16 @@ static int __devinit omap_hsmmc_probe(struct platform_device *pdev)
 	 * as we want. */
 	mmc->max_segs = 1024;
 
+	/* Eventually we should get our max_segs limitation for EDMA by
+	 * querying the dmaengine API */
+	if (pdev->dev.of_node) {
+		struct device_node *parent = pdev->dev.of_node->parent;
+		struct device_node *node;
+		node = of_find_node_by_name(parent, "edma");
+		if (node)
+			mmc->max_segs = 16;
+	}
+
 	mmc->max_blk_size = 512;       /* Block Length at max can be 1024 */
 	mmc->max_blk_count = 0xFFFF;    /* No. of Blocks is 16 bits */
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
@@ -1871,14 +1881,20 @@ static int __devinit omap_hsmmc_probe(struct platform_device *pdev)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	host->rx_chan = dma_request_channel(mask, omap_dma_filter_fn, &rx_req);
+	host->rx_chan =
+		dma_request_slave_channel_compat(mask, omap_dma_filter_fn,
+						 &rx_req, &pdev->dev, "rx");
+
 	if (!host->rx_chan) {
 		dev_err(mmc_dev(host->mmc), "unable to obtain RX DMA engine channel %u\n", rx_req);
 		ret = -ENXIO;
 		goto err_irq;
 	}
 
-	host->tx_chan = dma_request_channel(mask, omap_dma_filter_fn, &tx_req);
+	host->tx_chan =
+		dma_request_slave_channel_compat(mask, omap_dma_filter_fn,
+						 &tx_req, &pdev->dev, "tx");
+
 	if (!host->tx_chan) {
 		dev_err(mmc_dev(host->mmc), "unable to obtain TX DMA engine channel %u\n", tx_req);
 		ret = -ENXIO;
