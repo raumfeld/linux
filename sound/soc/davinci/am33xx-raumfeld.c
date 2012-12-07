@@ -106,10 +106,11 @@ static int sue_init_si5351(int freq)
 	int i, ret, size;
 
 	printk(KERN_ERR " %s() :: %d\n", __func__, freq);
-	
+
 	if (!adapter) {
 		printk(KERN_ERR "%s(): no adapter!?\n", __func__);
-		return -EIO;
+		ret = -EIO;
+		goto exit;
 	}
 	
 	printk(KERN_ERR " %s() :: adapter name >%s<\n", __func__, adapter->name);
@@ -133,7 +134,8 @@ static int sue_init_si5351(int freq)
 		break;
 	default:
 		printk(KERN_ERR "%s(): unsupported freq %d!\n", __func__, freq);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto exit;
 	}
 
 	memset(&msg, 0, sizeof(msg));
@@ -141,6 +143,7 @@ static int sue_init_si5351(int freq)
 	msg.addr = 0x60;
 	msg.buf = buf;
 	msg.len = sizeof(buf);
+	msg.flags = I2C_M_IGNORE_NAK;
 
 	for (i = 0; i < 183; i++) {
 		buf[0] = i;
@@ -149,13 +152,15 @@ static int sue_init_si5351(int freq)
 		mdelay(1);
 		if (ret < 0) {
 			printk(KERN_ERR " %s() write #%d failed\n", __func__, i);	
-			return ret;
+			goto exit;
 		}
 	}
 
-	printk(KERN_ERR " >>> %s(): SENT %d bytes\n", __func__, size);
+	printk(KERN_ERR " >>> %s(): SENT %d bytes\n", __func__, i);
 
-	return 0;
+exit:
+	i2c_put_adapter(adapter);
+	return ret;
 }
 
 static int raumfeld_i2s_hw_params(struct snd_pcm_substream *substream,
