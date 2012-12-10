@@ -437,7 +437,7 @@ static void mcasp_stop_rx(struct davinci_audio_dev *dev)
 
 static void mcasp_stop_tx(struct davinci_audio_dev *dev)
 {
-	mcasp_set_reg(dev->base + DAVINCI_MCASP_GBLCTLX_REG, 0);
+	mcasp_clr_bits(dev->base + DAVINCI_MCASP_GBLCTLX_REG, ~TXCLKRST);
 	mcasp_set_reg(dev->base + DAVINCI_MCASP_TXSTAT_REG, 0xFFFFFFFF);
 }
 
