@@ -872,6 +872,9 @@ static int gpmc_probe_nand_child(struct platform_device *pdev,
 				break;
 			}
 
+	// HACK!
+	gpmc_nand_data->is_elm_used = true;
+
 	val = of_get_nand_bus_width(child);
 	if (val == 16)
 		gpmc_nand_data->devsize = NAND_BUSWIDTH_16;
