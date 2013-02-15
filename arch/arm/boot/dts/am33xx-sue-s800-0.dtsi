@@ -1,0 +1,300 @@
+/*
+ * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/include/ "am33xx.dtsi"
+
+/ {
+	compatible = "ti,am335x-raumfeld-connector", "ti,am33xx";
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x10000000>; /* 256 MB */
+	};
+
+	cpus {
+		cpu@0 {
+			cpu0-supply = <&dcdc2_reg>;
+		};
+	};
+	
+	am3358_pinmux: pinmux@44e10800 {
+		uart1_pins: pinmux_uart1_pins {
+			pinctrl-single,pins = <
+				0x170 0x38	/* UART0_RXD */
+				0x174 0x00	/* UART0_TXD */
+			>;
+		};
+
+		i2c1_pins: pinmux_i2c1_pins {
+			pinctrl-single,pins = <
+				0x188 0x60	/* I2C0_SDA */
+				0x18c 0x60	/* I2C0_SCL */
+			>;
+		};
+
+		mmc1_pins: pinmux_mmc1_pins {
+			pinctrl-single,pins = <
+				0x0fc 0x38	/* MMC0_DAT0 */
+				0x0f8 0x38	/* MMC0_DAT1 */
+				0x0f4 0x38	/* MMC0_DAT2 */
+				0x0f0 0x38	/* MMC0_DAT3 */
+				0x100 0x38	/* MMC0_CLK */
+				0x104 0x38	/* MMC0_CMD */
+			>;
+		};
+
+		spi0_pins: pinmux_spi0_pins {
+			pinctrl-single,pins = <
+				0x150 0x28	/* SPI0_SCLK */
+				0x154 0x38	/* SPI0_D0 */
+				0x158 0x28	/* SPI0_D1 */
+				0x15c 0x38	/* SPI0_CS0 */
+			>;
+		};
+	};
+
+	ocp {
+		gpmc: gpmc@50000000 {
+			status = "okay";
+
+			nand@0,0 {
+				reg = <0 0 0>; /* CS0 */
+				nand-bus-width = <8>;
+				ti,nand-ecc-opt = "bch8";
+				elm_id = <&elm>;
+
+				gpmc,sync-clk = <0>;
+				gpmc,cs-on = <0>;
+				gpmc,cs-rd-off = <44>;
+				gpmc,cs-wr-off = <44>;
+				gpmc,adv-on = <6>;
+				gpmc,adv-rd-off = <34>;
+				gpmc,adv-wr-off = <44>;
+				gpmc,we-off = <40>;
+				gpmc,oe-off = <54>;
+				gpmc,access = <64>;
+				gpmc,rd-cycle = <82>;
+				gpmc,wr-cycle = <82>;
+				gpmc,wr-access = <40>;
+				gpmc,wr-data-mux-bus = <0>;
+
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				partition@0 {
+					label = "SPL";
+					reg = <0x0 0x20000>;
+				};
+
+				partition@1 {
+					label = "SPL.backup1";
+					reg = <0x20000 0x20000>;
+				};
+
+				partition@2 {
+					label = "SPL.backup2";
+					reg = <0x40000 0x20000>;
+				};
+
+				partition@3 {
+					label = "SPL.backup3";
+					reg = <0x60000 0x20000>;
+				};
+
+				partition@4 {
+					label = "U-Boot";
+					reg = <0x80000 0x100000>;
+				};
+
+				partition@5 {
+					label = "U-Boot Env";
+					reg = <0x180000 0x20000>;
+				};
+
+				partition@6 {
+					label = "Kernel";
+					reg = <0x1a0000 0x600000>;
+				};
+
+				partition@7 {
+					label = "DTB";
+					reg = <0x7a0000 0x40000>;
+				};
+
+				partition@8 {
+					label = "File System";
+					reg = <0x7e0000 0>;
+				};
+			};
+		};
+
+		i2c@44e0b000 {
+			status = "okay";
+			clock-frequency = <100000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c1_pins>;
+
+			tps: tps@24 {
+				reg = <0x24>;
+			};
+
+			eeprom: at24@50 {
+				compatible = "24c08";
+				reg = <0x50>;
+				pagesize = <16>;
+			};
+
+			/* Si5351a i2c clock generator */
+			si5351a: clock-generator@60 {
+				compatible = "silabs,si5351a";
+				reg = <0x60>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				#clock-cells = <1>;
+
+				/* connect xtal input to 25MHz reference */
+				clocks = <&ref25>;
+
+				/* connect xtal input as source of pll0 and pll1 */
+				pll-source = <0 0>, <1 0>;
+
+				/*
+				 * overwrite clkout0 configuration with:
+				 * - 8mA output drive strength
+				 * - pll0 as clock source of multisynth0
+				 * - multisynth0 as clock source of output divider
+				 * - multisynth0 can change pll0
+				 */
+				clkout0 {
+					reg = <0>;
+					drive-strength = <8>;
+					multisynth-source = <0>;
+					clock-source = <0>;
+					pll-master;
+				};
+
+				/*
+				 * overwrite clkout1 configuration with:
+				 * - 8mA output drive strength
+				 * - pll1 as clock source of multisynth1
+				 * - multisynth1 as clock source of output divider
+				 * - multisynth1 can change pll1
+				 */
+				clkout1 {
+					reg = <1>;
+					drive-strength = <8>;
+					multisynth-source = <1>;
+					clock-source = <0>;
+					pll-master;
+					clock-frequency = <32768>;
+				};
+			};
+		};
+
+		uart1: serial@44e09000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart1_pins>;
+		};
+
+		mmc1: mmc@48060000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&mmc1_pins>;
+			ti,non-removable;
+			bus-width = <4>;
+			vmmc-supply = <&ldo2_reg>;
+			vmmc_aux-supply = <&vmmc>;
+			ti,swakeup-not-implemented;
+			status = "okay";
+		};
+
+	};
+
+	/* 25MHz output from AR8030 Ethernet PHY */
+	ref25: ref25M {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+	};
+
+	vmmc: reg_vmmc_gpio {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-enable-high;
+
+	};
+	
+	mdio: davinci_mdio@4a101000 {
+		compatible = "ti,davinci-mdio";
+		ti,hwmods = "davinci_mdio";
+	};
+};
+
+/include/ "tps65217.dtsi"
+
+&tps {
+	regulators {
+		dcdc1_reg: regulator@0 {
+			/* VDD_1V8 */
+			regulator-min-microvolt = <925000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+		dcdc2_reg: regulator@1 {
+			/* VDD_MPU voltage limits 0.95V - 1.26V with +/-4% tolerance */
+			regulator-name = "vdd_mpu";
+			regulator-min-microvolt = <925000>;
+			regulator-max-microvolt = <1325000>; /* ??? */
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+		dcdc3_reg: regulator@2 {
+			/* VDD_CORE voltage limits 0.95V - 1.1V with +/-4% tolerance */
+			regulator-name = "vdd_core";
+			regulator-min-microvolt = <925000>;
+			regulator-max-microvolt = <1150000>; /* ??? */
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+		ldo1_reg: regulator@3 {
+			/* VRTC */
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+		ldo2_reg: regulator@4 {
+			/* WIFI_REG_EN */
+			regulator-min-microvolt = <900000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+		ldo3_reg: regulator@5 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+		ldo4_reg: regulator@6 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+	};
+};
+
