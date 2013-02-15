@@ -1,0 +1,4 @@
+/dts-v1/;
+
+/include/ "am33xx-sue-s800-0.dtsi"
+/include/ "am33xx-raumfeld-connector-0.dtsi"
