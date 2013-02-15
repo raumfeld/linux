@@ -1,0 +1,203 @@
+/*
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	model = "Raumfeld Connector (AM33xx)";
+	compatible = "ti,am335x-raumfeld-connector", "ti,am33xx";
+
+	chosen {
+		bootargs = "console=ttyO0,115200n8";
+	};
+
+	am3358_pinmux: pinmux@44e10800 {
+		spi0_pins: pinmux_spi0_pins {
+			pinctrl-single,pins = <
+				0x150 0x28	/* SPI0_CLK */
+				0x154 0x18	/* SPI0_D0  */
+				0x158 0x38	/* SPI0_D1  */
+				0x15C 0x18	/* SPI0_CS0 */
+				0x58  0x07	/* AK4101 reset */
+			>;
+		};
+
+		i2c3_pins: pinmux_i2c3_pins {
+			pinctrl-single,pins = <
+				0x178 0x23	/* I2C2_SDA */
+				0x17c 0x23	/* I2C2_SCL */
+			>;
+		};
+
+		led_pins: pinmux_led_pins {
+			pinctrl-single,pins = <
+				0x80 0x7	/* GPIO1_30 */
+				0x84 0x7	/* GPIO1_31 */
+			>;
+		};
+
+		audio_pins: pinmux_audio_pins {
+			pinctrl-single,pins = <
+				0x1ac 0x28	/* MCASP0_MCLK_OUT */
+				0x190 0x08	/* MCASP0_BCLK_OUT */
+				0x194 0x08	/* MCASP0_WCLK_OUT */
+				0x198 0x08	/* MCASP0_DATA_OUT */
+				0x1a8 0x28	/* MCASP0_DATA_IN  */
+				0x078 0x26	/* MCASP0_BCLK_IN  */
+				0x1a4 0x28	/* MCASP0_WCLK_IN  */
+				0x19c 0x28	/* MCASP0_MCLK_IN  */
+				0x1a0 0x27	/* MCASP0_BCLK_IN -> GPIO */
+			>;
+		};
+	};
+
+	ocp {
+		uart1: serial@44e09000 {
+			status = "okay";
+		};
+
+		i2c@44e0b000 {
+			status = "okay";
+		};
+
+		i2c@4802a000 {
+			status = "okay";
+		};
+
+		i2c@4819c000 {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c3_pins>;
+			clock-frequency = <100000>;
+
+			cs4271: cs4271@10 {
+				compatible = "cirrus,cs4271";
+				reg = <0x10>;
+				reset-gpio = <&gpio1 19 0>;
+				cirrus,amutec-eq-bmutec;
+				cirrus,enable-soft-reset;
+				vd-supply = <&vdd_audio>;
+			};
+		};
+
+		spi0: spi@48030000 {
+			status = "okay";
+			ti,pindir-d0-out-d1-in;
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi0_pins>;
+
+			ak4104: ak4104@0 {
+				compatible = "asahi-kasei,ak4104";
+				reg = <0>; /* CS0 */
+				spi-max-frequency = <500000>;
+				reset-gpio = <&gpio1 22 0>;
+			};
+		};
+
+		leds {
+			compatible = "gpio-leds";
+			pinctrl-names = "default";
+			pinctrl-0 = <&led_pins>;
+
+			d1 {
+				label = "raumfeld:1";
+				gpios = <&gpio3 4 0>;
+			};
+
+			d2 {
+				label = "raumfeld:2";
+				gpios = <&gpio3 10 0>;
+				default-state = "on";
+			};
+		};
+
+		gpio-keys {
+			compatible = "gpio-keys";
+
+			setup {
+				label = "Setup";
+				gpios = <&gpio2 18 1>;
+				linux,code = <141>; /* KEY_SETUP */
+				gpio-key,wakeup;
+			};
+
+			reset {
+				label = "Reset";
+				gpios = <&gpio1 9 1>;
+				linux,code = <61>; /* KEY_F3 */
+				gpio-key,wakeup;
+			};
+
+			power {
+				label = "Power";
+				gpios = <&gpio0 6 1>;
+				linux,code = <116>; /* KEY_POWER */
+				gpio-key,wakeup;
+			};
+		};
+
+		usb@47400000 {
+			status = "okay";
+			port0-mode = <1>;
+		};
+
+		mcasp@48038000 {
+			status = "okay";
+			op-mode = <0>;	  /* MCASP_IIS_MODE */
+			tdm-slots = <2>;
+			num-serializer = <16>;
+			serial-dir = <  1 2 0 0 /* 0: INACTIVE, 1: TX, 2: RX */
+					0 0 0 0
+					0 0 0 0
+					0 0 0 0 >;
+			tx-num-evt = <1>;
+			rx-num-evt = <1>;
+		};
+	};
+
+	audio {
+		compatible = "sue,am33xx-generic-audio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&audio_pins>;
+		sue,card-name = "Connector";
+		clocks = <&si5351a 0>;
+		sue,invert-wclk;
+
+		link@0 {
+			sue,name = "analog";
+			sue,stream-name = "I2S";
+
+			sue,platform = <&mcasp0>;
+			sue,cpu-dai-name = "48038000.mcasp";
+
+			sue,codec = <&cs4271>;
+			sue,codec-dai-name = "cs4271-hifi";
+		};
+
+		link@1 {
+			sue,name = "digital";
+			sue,stream-name = "I2S";
+
+			sue,platform = <&mcasp0>;
+			sue,cpu-dai-name = "48038000.mcasp";
+
+			sue,codec = <&ak4104>;
+			sue,codec-dai-name = "ak4104-hifi";
+		};
+	};
+
+	vdd_audio: vdd_audio_regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd-audio";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio1 18 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+};
+
+&cpsw_emac0 {
+	phy_id = <&davinci_mdio 4>;
+};
