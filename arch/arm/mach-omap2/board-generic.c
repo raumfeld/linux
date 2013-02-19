@@ -16,6 +16,7 @@
 #include <linux/of_platform.h>
 #include <linux/irqdomain.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 
 #include <asm/mach/arch.h>
 
@@ -51,6 +52,11 @@ static void __init legacy_init_ehci_clk(char *clkname)
 	}
 }
 
+static const __initconst struct of_device_id clk_match[] = {
+	{ .compatible = "fixed-clock", .data = of_fixed_clk_setup, },
+	{}
+};
+
 static void __init omap_generic_init(void)
 {
 	omap_sdrc_init(NULL, NULL);
@@ -70,6 +76,8 @@ static void __init omap_generic_init(void)
 		omap_4430sdp_display_init_of();
 	else if (of_machine_is_compatible("ti,omap5-uevm"))
 		legacy_init_ehci_clk("auxclk1_ck");
+
+	of_clk_init(clk_match);
 }
 
 #ifdef CONFIG_SOC_OMAP2420
