@@ -15,6 +15,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/irqdomain.h>
+#include <linux/clk-provider.h>
 
 #include <asm/mach/arch.h>
 
@@ -33,9 +34,15 @@ static struct of_device_id omap_dt_match_table[] __initdata = {
 	{ }
 };
 
+static const __initconst struct of_device_id clk_match[] = {
+	{ .compatible = "fixed-clock", .data = of_fixed_clk_setup, },
+	{}
+};
+
 static void __init omap_generic_init(void)
 {
 	pdata_quirks_init(omap_dt_match_table);
+	of_clk_init(clk_match);
 }
 
 #ifdef CONFIG_SOC_OMAP2420
