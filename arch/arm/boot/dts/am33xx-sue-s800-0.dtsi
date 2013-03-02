@@ -48,6 +48,12 @@
 			>;
 		};
 
+		mmc1_cirq_pin: pinmux_cirq_pin {
+			pinctrl-single,pins = <
+				0x0f8 0x3f	/* MMC0_DAT1 as GPIO2_28 */
+			>;
+		};
+
 		spi0_pins: pinmux_spi0_pins {
 			pinctrl-single,pins = <
 				0x150 0x28	/* SPI0_SCLK */
@@ -202,8 +208,10 @@
 		};
 
 		mmc1: mmc@48060000 {
-			pinctrl-names = "default";
+			pinctrl-names = "default", "idle";
 			pinctrl-0 = <&mmc1_pins>;
+			pinctrl-1 = <&mmc1_cirq_pin>;
+			ti,cirq-gpio = <&gpio2 28 0>;
 			ti,non-removable;
 			bus-width = <4>;
 			vmmc-supply = <&ldo2_reg>;
