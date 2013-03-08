@@ -550,6 +550,7 @@ static int tas5086_i2c_probe(struct i2c_client *i2c,
 		msleep(15);
 	}
 
+msleep(300);
 	priv->gpio_nreset = gpio_nreset;
 
 	/* The TAS5086 always returns 0x03 in its TAS5086_DEV_ID register */
