@@ -201,7 +201,7 @@ static void davinci_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 		src = dma_pos;
 		dst = prtd->params->dma_addr;
 		src_bidx = data_type;
-		dst_bidx = 4;
+		dst_bidx = 0;
 		src_cidx = data_type * fifo_level;
 		dst_cidx = 0;
 	} else {
