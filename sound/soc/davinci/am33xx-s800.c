@@ -20,18 +20,29 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
+#define RAUMFELD_DAI_FMT \
+	(SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_NB_NF)
+
+#define DATA_WORD_WIDTH 32
+
 struct snd_soc_am33xx_s800 {
 	struct snd_soc_card	card;
 	struct clk 		*mclk;
-	signed int		mclk_rate;
+	unsigned int		mclk_rate;
 	signed int		drift;
 };
 
 static int am33xx_s800_set_mclk(struct snd_soc_am33xx_s800 *priv)
 {
 	int ret;
-	signed long comp = (priv->mclk_rate * priv->drift) / 1000000L;
-	signed long clk = priv->mclk_rate - comp;
+	unsigned int drift;
+	int sgn = priv->drift > 0 ? 1:-1;
+	signed long comp, clk;
+
+	drift = priv->drift * sgn;
+	comp = ((priv->mclk_rate / DATA_WORD_WIDTH) * drift ) / (1000000ULL / DATA_WORD_WIDTH) ;
+	comp *= sgn;
+	clk = priv->mclk_rate - comp;
 
 	ret = clk_set_rate(priv->mclk, clk);
 	if (ret < 0)
@@ -71,12 +82,12 @@ static int am33xx_s800_i2s_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	/* BCLK divider */
-	ret = snd_soc_dai_set_clkdiv(cpu_dai, 1, clk / (rate * 64));
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, 1, clk / (rate * 2 * DATA_WORD_WIDTH));
 	if (ret < 0)
 		return ret;
 
 	/* BCLK-to-LRCLK divider */
-	ret = snd_soc_dai_set_clkdiv(cpu_dai, 2, 64);
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, 2, 2 * DATA_WORD_WIDTH);
 	if (ret < 0)
 		return ret;
 
