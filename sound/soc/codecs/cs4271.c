@@ -171,6 +171,9 @@ struct cs4271_private {
 	int				gpio_disable;
 	/* enable soft reset workaround */
 	bool				enable_soft_reset;
+	/* keep track of playback mute flags */
+	bool				mute_control;
+	bool				digital_mute;
 };
 
 /*
@@ -279,6 +282,51 @@ static int cs4271_put_deemph(struct snd_kcontrol *kcontrol,
 
 	cs4271->deemph = ucontrol->value.enumerated.item[0];
 	return cs4271_set_deemph(codec);
+}
+
+static int cs4271_set_mute(struct snd_soc_codec *codec)
+{
+	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
+	int val_a = 0;
+	int val_b = 0;
+	int ret;
+
+	if (cs4271->digital_mute || cs4271->mute_control) {
+		val_a = CS4271_VOLA_MUTE;
+		val_b = CS4271_VOLB_MUTE;
+	}
+
+	ret = regmap_update_bits(cs4271->regmap, CS4271_VOLA,
+				 CS4271_VOLA_MUTE, val_a);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_update_bits(cs4271->regmap, CS4271_VOLB,
+				 CS4271_VOLB_MUTE, val_b);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int cs4271_get_playback_switch(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.enumerated.item[0] = !cs4271->mute_control;
+	return 0;
+}
+
+static int cs4271_put_playback_switch(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
+
+	cs4271->mute_control = !ucontrol->value.enumerated.item[0];
+	return cs4271_set_mute(codec);
 }
 
 struct cs4271_clk_cfg {
@@ -392,27 +440,11 @@ static int cs4271_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
-	int ret;
-	int val_a = 0;
-	int val_b = 0;
 
-	if (stream != SNDRV_PCM_STREAM_PLAYBACK)
-		return 0;
-
-	if (mute) {
-		val_a = CS4271_VOLA_MUTE;
-		val_b = CS4271_VOLB_MUTE;
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		cs4271->digital_mute = mute;
+		return cs4271_set_mute(codec);
 	}
-
-	ret = regmap_update_bits(cs4271->regmap, CS4271_VOLA,
-				 CS4271_VOLA_MUTE, val_a);
-	if (ret < 0)
-		return ret;
-
-	ret = regmap_update_bits(cs4271->regmap, CS4271_VOLB,
-				 CS4271_VOLB_MUTE, val_b);
-	if (ret < 0)
-		return ret;
 
 	return 0;
 }
@@ -437,8 +469,8 @@ static const struct snd_kcontrol_new cs4271_snd_controls[] = {
 	SOC_DOUBLE("Master Capture Switch", CS4271_ADCCTL, 3, 2, 1, 1),
 	SOC_SINGLE("Dither 16-Bit Data Switch", CS4271_ADCCTL, 5, 1, 0),
 	SOC_DOUBLE("High Pass Filter Switch", CS4271_ADCCTL, 1, 0, 1, 1),
-	SOC_DOUBLE_R("Master Playback Switch", CS4271_VOLA, CS4271_VOLB,
-		7, 1, 1),
+	SOC_SINGLE_BOOL_EXT("Master Playback Switch", 0,
+		cs4271_get_playback_switch, cs4271_put_playback_switch),
 };
 
 static const struct snd_soc_dai_ops cs4271_dai_ops = {
