@@ -541,6 +541,14 @@ void __init omap3630_init_late(void)
 	omap2_clk_enable_autoidle_all();
 }
 
+void __init am33xx_init_late(void)
+{
+	struct platform_device_info devinfo = { .name = "cpufreq-cpu0", };
+
+	if (IS_ENABLED(CONFIG_GENERIC_CPUFREQ_CPU0))
+		platform_device_register_full(&devinfo);
+}
+
 void __init am35xx_init_late(void)
 {
 	omap_mux_late_init();
