@@ -815,6 +815,8 @@ static struct irq_chip gpio_irq_chip = {
 	.irq_unmask	= gpio_unmask_irq,
 	.irq_set_type	= gpio_irq_type,
 	.irq_set_wake	= gpio_wake_enable,
+	.irq_disable    = gpio_mask_irq,
+	.irq_enable     = gpio_unmask_irq,
 };
 
 /*---------------------------------------------------------------------*/
