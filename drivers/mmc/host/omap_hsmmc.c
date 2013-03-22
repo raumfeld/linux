@@ -1788,6 +1788,8 @@ static int omap_hsmmc_regs_show(struct seq_file *s, void *data)
 				   "high" : "low");
 		}
 		seq_printf(s, "pm suspends\t%d\n", host->pm_suspend_ct);
+		seq_printf(s, "gpio disable depth %d\n",
+			   get_irq_disable_depth(mmc_slot(host).sdio_irq));
 		spin_unlock_irqrestore(&host->irq_lock, flags);
 	}
 
@@ -2164,6 +2166,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 		 * effectively enabled. starting with ref count equal 2
 		 */
 		disable_irq(mmc_slot(host).sdio_irq);
+		WARN_ON(get_irq_disable_depth(mmc_slot(host).sdio_irq) != 2);
 	}
 
 	omap_hsmmc_disable_irq(host);
@@ -2410,6 +2413,7 @@ static int omap_hsmmc_runtime_suspend(struct device *dev)
 	dev_dbg(dev, "disabled\n");
 
 	if (mmc_slot(host).sdio_irq && host->pinctrl) {
+		int depth;
 
 		spin_lock_irqsave(&host->irq_lock, flags);
 		host->active_pinmux = false;
@@ -2418,6 +2422,9 @@ static int omap_hsmmc_runtime_suspend(struct device *dev)
 		OMAP_HSMMC_WRITE(host->base, ISE, 0);
 		OMAP_HSMMC_WRITE(host->base, IE, 0);
 		OMAP_HSMMC_WRITE(host->base, STAT, STAT_CLEAR);
+
+		depth = get_irq_disable_depth(mmc_slot(host).sdio_irq);
+		WARN_ON(depth != (host->sdio_irq_en ? 1 : 2));
 		spin_unlock_irqrestore(&host->irq_lock, flags);
 
 		ret = pinctrl_select_state(host->pinctrl, host->idle);
