@@ -417,6 +417,23 @@ void disable_irq(unsigned int irq)
 }
 EXPORT_SYMBOL(disable_irq);
 
+int get_irq_disable_depth(unsigned int irq)
+{
+	int depth;
+	unsigned long flags;
+	struct irq_desc *desc = irq_get_desc_buslock(irq, &flags,
+						     IRQ_GET_DESC_CHECK_GLOBAL);
+
+	if (!desc)
+		return -1;
+
+	depth = desc->depth;
+
+	irq_put_desc_busunlock(desc, flags);
+	return depth;
+}
+EXPORT_SYMBOL(get_irq_disable_depth);
+
 void __enable_irq(struct irq_desc *desc, unsigned int irq, bool resume)
 {
 	if (resume) {
