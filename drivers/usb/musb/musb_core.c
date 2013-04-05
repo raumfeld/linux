@@ -757,9 +757,11 @@ b_host:
 		case OTG_STATE_A_SUSPEND:
 			musb_host_resume_root_hub(musb);
 			musb_root_disconnect(musb);
+#if 0
 			if (musb->a_wait_bcon != 0)
 				musb_platform_try_idle(musb, jiffies
 					+ msecs_to_jiffies(musb->a_wait_bcon));
+#endif
 			break;
 		case OTG_STATE_B_HOST:
 			/* REVISIT this behaves for "real disconnect"
