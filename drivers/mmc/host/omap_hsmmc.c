@@ -55,13 +55,13 @@ static void apply_clk_hack(void)
 	if (ret < 0)
 		return;
 
-	ck_32 = clk_get(NULL, "clk_32768_ck");
-        if (IS_ERR(ck_32)) {
+	ck_32 = clk_get(NULL, "clkout2_ck");
+	if (IS_ERR(ck_32)) {
 		printk(KERN_ERR "%s() :: Cannot clk_get()!\n", __func__);
 		return;
-        }
+	}
 
-	clk_enable(ck_32);
+	clk_prepare_enable(ck_32);
 	udelay(1000);
 	gpio_set_value(gpio, 1);
 }
