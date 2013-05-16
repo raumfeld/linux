@@ -88,6 +88,7 @@ config  SND_AM335X_SOC_S800
 	select SND_SOC_AK4104
 	select SND_SOC_AK5386
 	select SND_SOC_TAS5086
+	select SND_SOC_ADAU1701
 	help
 	  Say Y if you want to add support for SoC audio on AM335X
 	  based SUE (StreamUnlimited) S800  devices, for example
