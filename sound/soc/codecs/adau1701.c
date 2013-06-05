@@ -420,12 +420,11 @@ static int adau1701_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	bool invert_lrclk;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+	case SND_SOC_DAIFMT_CBS_CFS:
 	case SND_SOC_DAIFMT_CBM_CFM:
 		/* master, 64-bits per sample, 1 frame per sample */
 		seroctl |= ADAU1701_SEROCTL_MASTER | ADAU1701_SEROCTL_OBF16
 				| ADAU1701_SEROCTL_OLF1024;
-		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
 		break;
 	default:
 		return -EINVAL;
