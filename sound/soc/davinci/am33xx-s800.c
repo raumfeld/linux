@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -27,6 +28,9 @@ struct snd_soc_am33xx_s800 {
 	struct clk 		*mclk;
 	unsigned int		mclk_rate;
 	signed int		drift;
+	int			passive_mode_gpio;
+	int			amp_overheat_gpio;
+	struct snd_kcontrol	*amp_overheat_kctl;
 };
 
 static int am33xx_s800_set_mclk(struct snd_soc_am33xx_s800 *priv)
@@ -122,7 +126,7 @@ static int am33xx_s800_drift_info(struct snd_kcontrol *kcontrol,
 static int am33xx_s800_drift_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-        struct snd_soc_card *card =  snd_kcontrol_chip(kcontrol);
+        struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_am33xx_s800 *priv = snd_soc_card_get_drvdata(card);
 
 	ucontrol->value.integer.value[0] = priv->drift;
@@ -161,6 +165,60 @@ static const struct snd_kcontrol_new am33xx_s800_controls[] = {
 		.put	= am33xx_s800_drift_put,
 	},
 };
+
+static int am33xx_s800_passive_mode_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+        struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_am33xx_s800 *priv = snd_soc_card_get_drvdata(card);
+
+	ucontrol->value.integer.value[0] =
+		!gpio_get_value_cansleep(priv->passive_mode_gpio);
+	return 0;
+}
+
+static int am33xx_s800_passive_mode_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+        struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_am33xx_s800 *priv = snd_soc_card_get_drvdata(card);
+
+	gpio_set_value(priv->passive_mode_gpio,
+		       !ucontrol->value.integer.value[0]);
+        return 1;
+}
+
+static const struct snd_kcontrol_new am33xx_s800_passive_mode_control =
+	SOC_SINGLE_BOOL_EXT("Passive mode", 0,
+			    am33xx_s800_passive_mode_get,
+			    am33xx_s800_passive_mode_put);
+
+static int am33xx_s800_amp_overheat_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+        struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_am33xx_s800 *priv = snd_soc_card_get_drvdata(card);
+
+	ucontrol->value.integer.value[0] =
+		!gpio_get_value_cansleep(priv->amp_overheat_gpio);
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new am33xx_s800_amp_overheat_control =
+	SOC_SINGLE_BOOL_EXT("Amplifier Overheat Sensor", 0,
+			    am33xx_s800_amp_overheat_get,
+			    NULL);
+
+static irqreturn_t am33xx_s800_amp_overheat_irq(int irq, void *data)
+{
+	struct snd_soc_am33xx_s800 *priv = data;
+
+	snd_ctl_notify(priv->card.snd_card, SNDRV_CTL_EVENT_MASK_VALUE,
+		       &priv->amp_overheat_kctl->id);
+
+	return IRQ_HANDLED;
+}
 
 static const struct of_device_id snd_soc_am33xx_s800_match[] = {
 	{ .compatible	= "sue,am33xx-generic-audio" },
@@ -248,8 +306,58 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 	snd_soc_card_set_drvdata(&priv->card, priv);
 
 	ret = snd_soc_register_card(&priv->card);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(dev, "error registering card (%d)\n", ret);
+		return ret;
+	}
+
+	priv->passive_mode_gpio = of_get_named_gpio(np, "sue,passive-mode-gpio", 0);
+	if (gpio_is_valid(priv->passive_mode_gpio)) {
+		ret = devm_gpio_request_one(dev, priv->passive_mode_gpio,
+					    GPIOF_OUT_INIT_HIGH,
+					    "Audio Passive Mode");
+
+		if (ret == 0) {
+			struct snd_kcontrol *kc =
+				snd_ctl_new1(&am33xx_s800_passive_mode_control, priv);
+			ret = snd_ctl_add(priv->card.snd_card, kc);
+			if (ret < 0)
+				dev_warn(dev, "Failed to add passive mode control: %d\n", ret);
+		}
+
+		if (ret < 0)
+			priv->passive_mode_gpio = -EINVAL;
+	}
+
+	priv->amp_overheat_gpio = of_get_named_gpio(np, "sue,amp-overheat-gpio", 0);
+	if (gpio_is_valid(priv->amp_overheat_gpio)) {
+		ret = devm_gpio_request_one(dev, priv->amp_overheat_gpio,
+					    GPIOF_IN, "Amplifier Overheat");
+
+		if (ret == 0) {
+			unsigned int irq_flags = IRQF_TRIGGER_RISING |
+						 IRQF_TRIGGER_FALLING |
+						 IRQF_ONESHOT;
+
+			ret = request_threaded_irq(gpio_to_irq(priv->amp_overheat_gpio),
+						   NULL, am33xx_s800_amp_overheat_irq,
+						   irq_flags, "Amplifier Overheat", priv);
+			if (ret < 0)
+				dev_warn(dev, "Unable to request amp overheat IRQ: %d\n", ret);
+		}
+
+		if (ret == 0) {
+			priv->amp_overheat_kctl =
+				snd_ctl_new1(&am33xx_s800_amp_overheat_control, priv);
+
+			ret = snd_ctl_add(priv->card.snd_card, priv->amp_overheat_kctl);
+			if (ret < 0)
+				dev_warn(dev, "Failed to add amp overheat control: %d\n", ret);
+		}
+
+		if (ret < 0)
+			priv->amp_overheat_gpio = -EINVAL;
+	}
 
 	return 0;
 }
