@@ -70,6 +70,8 @@ struct snd_compr_stream;
 #define SND_SOC_DAIFMT_CBM_CFS		(3 << 12) /* codec clk master & frame slave */
 #define SND_SOC_DAIFMT_CBS_CFS		(4 << 12) /* codec clk & FRM slave */
 
+#define SND_SOC_DAIFMT_CMM		(1 << 16) /* codec mclk master flag */
+
 #define SND_SOC_DAIFMT_FORMAT_MASK	0x000f
 #define SND_SOC_DAIFMT_CLOCK_MASK	0x00f0
 #define SND_SOC_DAIFMT_INV_MASK		0x0f00
