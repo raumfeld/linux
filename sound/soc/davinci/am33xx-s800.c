@@ -13,6 +13,8 @@
 #include <linux/platform_device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/clk.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
@@ -50,6 +52,85 @@ static int am33xx_s800_set_mclk(struct snd_soc_am33xx_s800 *priv)
 		return ret;
 
 	return 0;
+}
+
+static const struct snd_soc_dapm_route ams_delta_audio_map[] = {
+	{ "PWM1", "SDIN1 Left Mux", "SDIN1 right" },
+};
+
+static int snd_soc_am33xx_s800_set_control(struct snd_card *card,
+					   const char *name,
+					   const char *value)
+{
+	struct snd_ctl_elem_id id;
+	struct snd_kcontrol *ctl;
+	struct snd_ctl_elem_value val;
+	struct snd_ctl_elem_info *info;
+	int i, ret = 0;
+
+	memset(&id, 0, sizeof(id));
+	memset(&val, 0, sizeof(val));
+
+	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+
+	strlcpy(id.name, name, sizeof(id.name));
+
+	ctl = snd_ctl_find_id(card, &id);
+	if (!ctl) {
+		dev_warn(card->dev, "Unknown control name '%s'\n", name);
+		return -ENOENT;
+	}
+
+	if (!ctl->put || !ctl->info) {
+		dev_warn(card->dev, "Control '%s' not writable\n", name);
+		return -ENOENT;
+	}
+
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	ret = ctl->info(ctl, info);
+	if (ret < 0) {
+		dev_warn(card->dev, "Unable to get info for '%s'\n", name);
+		goto exit_free_info;
+	}
+
+	if (info->type != SNDRV_CTL_ELEM_TYPE_ENUMERATED) {
+		dev_warn(card->dev, "Control '%s' is not an enum\n", name);
+		ret = -EINVAL;
+		goto exit_free_info;
+	}
+
+	for (i = 0; i < info->value.enumerated.items; i++) {
+		info->value.enumerated.item = i;
+		ctl->info(ctl, info);
+
+		if (strcmp(info->value.enumerated.name, value) != 0)
+			continue;
+
+		val.value.enumerated.item[0] = i;
+
+		ret = ctl->put(ctl, &val);
+		if (ret < 0) {
+			dev_warn(card->dev,
+				 "Unable to write control '%s'\n",
+				 name);
+			goto exit_free_info;
+		}
+
+		dev_warn(card->dev, "Control default '%s' -> '%s'\n",
+			 name, value);
+
+		goto exit;
+	}
+
+	dev_warn(card->dev, "Enum '%s' has no entry '%s'\n", name, value);
+
+exit_free_info:
+	kfree(info);
+exit:
+	return ret;
 }
 
 static int am33xx_s800_i2s_hw_params(struct snd_pcm_substream *substream,
@@ -230,12 +311,14 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 	int ret;
 	unsigned int dai_fmt;
 	struct device *dev = &pdev->dev;
-	struct device_node *child, *np = dev->of_node;
+	struct device_node *top_node, *node;
 	struct snd_soc_am33xx_s800 *priv;
 	struct snd_soc_dai_link *link;
 	struct pinctrl *pinctrl;
         const struct of_device_id *of_id =
                         of_match_device(snd_soc_am33xx_s800_match, dev);
+
+	top_node = dev->of_node;
 
 	if (!of_id)
 		return -ENODEV;
@@ -247,7 +330,7 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 
 	dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS;
 
-	if (of_get_property(np, "sue,invert-wclk", NULL))
+	if (of_get_property(top_node, "sue,invert-wclk", NULL))
 		dai_fmt |= SND_SOC_DAIFMT_NB_IF;
 	else
 		dai_fmt |= SND_SOC_DAIFMT_NB_NF;
@@ -257,7 +340,7 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 	if (IS_ERR(pinctrl))
 		dev_warn(dev, "pins are not configured from the driver\n");
 
-	priv->mclk = of_clk_get(np, 0);
+	priv->mclk = of_clk_get(top_node, 0);
 	if (IS_ERR(priv->mclk)) {
 		dev_err(dev, "failed to get MCLK\n");
 		return -EPROBE_DEFER;
@@ -270,36 +353,41 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 	priv->card.dev = dev;
 	snd_soc_of_parse_card_name(&priv->card, "sue,card-name");
 
-	/* iterate over child nodes */
-	priv->card.num_links = of_get_child_count(np);
-	if (priv->card.num_links == 0)
-		return -EINVAL;
+	node = of_get_child_by_name(top_node, "links");
+	if (node) {
+		struct device_node *child;
 
-	priv->card.dai_link =
-		devm_kzalloc(dev, priv->card.num_links * sizeof(*link),
-			     GFP_KERNEL);
-	if (!priv->card.dai_link)
-		return -ENOMEM;
+		/* iterate over child nodes */
+		priv->card.num_links = of_get_child_count(node);
+		if (priv->card.num_links == 0)
+			return -EINVAL;
 
-	link = priv->card.dai_link;
+		priv->card.dai_link =
+			devm_kzalloc(dev, priv->card.num_links * sizeof(*link),
+				     GFP_KERNEL);
+		if (!priv->card.dai_link)
+			return -ENOMEM;
 
-	for_each_child_of_node(np, child) {
-		link->platform_of_node = of_parse_phandle(child, "sue,platform", 0);
-		link->codec_of_node = of_parse_phandle(child, "sue,codec", 0);
+		link = priv->card.dai_link;
 
-		of_property_read_string(child, "sue,name",
-					&link->name);
-		of_property_read_string(child, "sue,stream-name",
-					&link->stream_name);
-		of_property_read_string(child, "sue,cpu-dai-name",
-					&link->cpu_dai_name);
-		of_property_read_string(child, "sue,codec-dai-name",
-					&link->codec_dai_name);
+		for_each_child_of_node(node, child) {
+			link->platform_of_node = of_parse_phandle(child, "sue,platform", 0);
+			link->codec_of_node = of_parse_phandle(child, "sue,codec", 0);
 
-		link->ops = &am33xx_s800_dai_link_ops;
-		link->dai_fmt = dai_fmt;
+			of_property_read_string(child, "sue,name",
+						&link->name);
+			of_property_read_string(child, "sue,stream-name",
+						&link->stream_name);
+			of_property_read_string(child, "sue,cpu-dai-name",
+						&link->cpu_dai_name);
+			of_property_read_string(child, "sue,codec-dai-name",
+						&link->codec_dai_name);
 
-		link++;
+			link->ops = &am33xx_s800_dai_link_ops;
+			link->dai_fmt = dai_fmt;
+
+			link++;
+		}
 	}
 
 	platform_set_drvdata(pdev, &priv->card);
@@ -311,7 +399,22 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	priv->passive_mode_gpio = of_get_named_gpio(np, "sue,passive-mode-gpio", 0);
+	node = of_get_child_by_name(top_node, "control-defaults");
+	if (node) {
+		struct device_node *child;
+
+		for_each_child_of_node(node, child) {
+			const char *name, *value;
+
+			of_property_read_string(child, "sue,control-name", &name);
+			of_property_read_string(child, "sue,control-value", &value);
+
+			snd_soc_am33xx_s800_set_control(priv->card.snd_card,
+							name, value);
+		}
+	}
+
+	priv->passive_mode_gpio = of_get_named_gpio(top_node, "sue,passive-mode-gpio", 0);
 	if (gpio_is_valid(priv->passive_mode_gpio)) {
 		ret = devm_gpio_request_one(dev, priv->passive_mode_gpio,
 					    GPIOF_OUT_INIT_HIGH,
@@ -329,7 +432,7 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 			priv->passive_mode_gpio = -EINVAL;
 	}
 
-	priv->amp_overheat_gpio = of_get_named_gpio(np, "sue,amp-overheat-gpio", 0);
+	priv->amp_overheat_gpio = of_get_named_gpio(top_node, "sue,amp-overheat-gpio", 0);
 	if (gpio_is_valid(priv->amp_overheat_gpio)) {
 		ret = devm_gpio_request_one(dev, priv->amp_overheat_gpio,
 					    GPIOF_IN, "Amplifier Overheat");
