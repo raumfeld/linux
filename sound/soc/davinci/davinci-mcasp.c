@@ -506,9 +506,9 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		mcasp_set_bits(base + DAVINCI_MCASP_RXFMCTL_REG, AFSRE);
 
 		mcasp_set_bits(base + DAVINCI_MCASP_PDIR_REG,
-				ACLKX | ACLKR);
+				ACLKX);
 		mcasp_set_bits(base + DAVINCI_MCASP_PDIR_REG,
-				AFSX | AFSR);
+				AFSX);
 		break;
 	case SND_SOC_DAIFMT_CBM_CFS:
 		/* codec is clock master and frame slave */
