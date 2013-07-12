@@ -38,6 +38,13 @@ config COMMON_CLK_MAX77686
 	---help---
 	  This driver supports Maxim 77686 crystal oscillator clock. 
 
+config COMMON_CLK_MAX9485
+	tristate "Clock driver for Maxim 9485 Programmable Clock Generator"
+	depends on I2C
+	select REGMAP_I2C
+	---help---
+	  This driver supports Maxim 9485 Programmable Audio Clock Generator
+
 config COMMON_CLK_SI5351
 	tristate "Clock driver for SiLabs 5351A/B/C"
 	depends on I2C
