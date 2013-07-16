@@ -25,6 +25,8 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
+#include <linux/dmaengine.h>
+#include <linux/omap-dma.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -1140,9 +1142,10 @@ nodata:
 static int davinci_mcasp_probe(struct platform_device *pdev)
 {
 	struct davinci_pcm_dma_params *dma_data;
-	struct resource *mem, *ioarea, *res;
+	struct resource *mem, *ioarea;
 	struct snd_platform_data *pdata;
 	struct davinci_audio_dev *dev;
+	struct of_phandle_args dma_spec;
 	int ret;
 
 	if (!pdev->dev.platform_data && !pdev->dev.of_node) {
@@ -1210,14 +1213,10 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 							mem->start);
 
 	/* first TX, then RX */
-	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no DMA resource\n");
-		ret = -ENODEV;
-		goto err_release_clk;
-	}
-
-	dma_data->channel = res->start;
+	of_parse_phandle_with_args(pdev->dev.of_node, "dmas", "#dma-cells",
+				   0, &dma_spec);
+	dma_data->channel = dma_spec.args[0];
+	of_node_put(dma_spec.np);
 
 	dma_data = &dev->dma_params[SNDRV_PCM_STREAM_CAPTURE];
 	dma_data->asp_chan_q = pdata->asp_chan_q;
@@ -1230,14 +1229,11 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		dma_data->dma_addr = (dma_addr_t)(pdata->rx_dma_offset +
 							mem->start);
 
-	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-	if (!res) {
-		dev_err(&pdev->dev, "no DMA resource\n");
-		ret = -ENODEV;
-		goto err_release_clk;
-	}
+	of_parse_phandle_with_args(pdev->dev.of_node, "dmas", "#dma-cells",
+				   1, &dma_spec);
+	dma_data->channel = dma_spec.args[0];
+	of_node_put(dma_spec.np);
 
-	dma_data->channel = res->start;
 	dev_set_drvdata(&pdev->dev, dev);
 	ret = snd_soc_register_component(&pdev->dev, &davinci_mcasp_component,
 					 &davinci_mcasp_dai[pdata->op_mode], 1);
