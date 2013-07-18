@@ -489,6 +489,7 @@ static int adau1701_set_bias_level(struct snd_soc_codec *codec,
 	unsigned int mask = ADAU1701_AUXNPOW_VBPD | ADAU1701_AUXNPOW_VRPD;
 	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
 
+#if 0
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
@@ -505,6 +506,7 @@ static int adau1701_set_bias_level(struct snd_soc_codec *codec,
 				   ADAU1701_AUXNPOW, mask, mask);
 		break;
 	}
+#endif
 
 	codec->dapm.bias_level = level;
 	return 0;
