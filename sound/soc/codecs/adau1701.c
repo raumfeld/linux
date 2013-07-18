@@ -273,8 +273,8 @@ static int adau1701_reset(struct snd_soc_codec *codec, unsigned int clkdiv)
 		/* minimum reset time is 20ns */
 		udelay(1);
 		gpio_set_value(adau1701->gpio_nreset, 1);
-		/* power-up time may be as long as 85ms */
-		mdelay(85);
+		/* power-up time may be as long as 150ms */
+		mdelay(150);
 	}
 
 	/*
