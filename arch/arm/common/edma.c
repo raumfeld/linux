@@ -1261,8 +1261,8 @@ int edma_start(unsigned channel)
 		if (test_bit(channel, edma_cc[ctlr]->edma_unused)) {
 			pr_debug("EDMA: ESR%d %08x\n", j,
 				edma_shadow0_read_array(ctlr, SH_ESR, j));
-			edma_shadow0_write_array(ctlr, SH_ESR, j, mask);
-			return 0;
+			//edma_shadow0_write_array(ctlr, SH_ESR, j, mask);
+			//return 0;
 		}
 
 		/* EDMA channel with event association */
