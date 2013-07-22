@@ -970,12 +970,14 @@ static struct snd_soc_dai_driver davinci_mcasp_dai[] = {
 	{
 		.name		= "davinci-mcasp.0",
 		.playback	= {
+			.stream_name	= "Playback",
 			.channels_min	= 2,
 			.channels_max	= 32 * 16,
 			.rates 		= DAVINCI_MCASP_RATES,
 			.formats	= DAVINCI_MCASP_PCM_FMTS,
 		},
 		.capture 	= {
+			.stream_name	= "Capture",
 			.channels_min 	= 2,
 			.channels_max	= 32 * 16,
 			.rates 		= DAVINCI_MCASP_RATES,
@@ -985,8 +987,9 @@ static struct snd_soc_dai_driver davinci_mcasp_dai[] = {
 
 	},
 	{
-		"davinci-mcasp.1",
+		.name		= "davinci-mcasp.1",
 		.playback 	= {
+			.stream_name	= "Playback",
 			.channels_min	= 1,
 			.channels_max	= 384,
 			.rates		= DAVINCI_MCASP_RATES,
