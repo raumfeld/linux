@@ -1014,12 +1014,14 @@ static struct resource pxa3xx_resources_nand[] = {
 	},
 	[2] = {
 		/* DRCMR for Data DMA */
+		.name	= "data",
 		.start	= 97,
 		.end	= 97,
 		.flags	= IORESOURCE_DMA,
 	},
 	[3] = {
 		/* DRCMR for Command DMA */
+		.name	= "cmd",
 		.start	= 99,
 		.end	= 99,
 		.flags	= IORESOURCE_DMA,
