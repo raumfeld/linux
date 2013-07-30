@@ -741,6 +741,12 @@ static int mmp_pdma_control(struct dma_chan *dchan, enum dma_ctrl_cmd cmd,
 		if (cfg->slave_id)
 			chan->drcmr = cfg->slave_id;
 		break;
+	case DMA_PAUSE:
+		disable_chan(chan->phy);
+		break;
+	case DMA_RESUME:
+		start_pending_queue(chan);
+		break;
 	default:
 		return -ENOSYS;
 	}
