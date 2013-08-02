@@ -48,6 +48,11 @@
 #define NR_SG	1
 #define CLKRT_OFF	(~0)
 
+static inline void raumfeld_hack(void) {
+	gpio_request_one(113, GPIOF_OUT_INIT_HIGH, "W2W_RST");
+	gpio_request_one(114, GPIOF_OUT_INIT_HIGH, "W2W_PDN");
+}
+
 #define mmc_has_26MHz()		(cpu_is_pxa300() || cpu_is_pxa310() \
 				|| cpu_is_pxa935())
 
@@ -642,6 +647,9 @@ static int pxamci_probe(struct platform_device *pdev)
 	int ret, irq, gpio_cd = -1, gpio_ro = -1, gpio_power = -1;
 	dma_cap_mask_t mask;
 
+raumfeld_hack();
+
+printk("%s() %d\n", __func__, __LINE__);
 	ret = pxamci_of_init(pdev);
 	if (ret)
 		return ret;
