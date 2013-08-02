@@ -31,7 +31,7 @@ static const struct of_dev_auxdata pxa3xx_auxdata_lookup[] __initconst = {
 	OF_DEV_AUXDATA("intel,pxa3xx-gpio",	0x40e00000, "pxa3xx-gpio", NULL),
 	OF_DEV_AUXDATA("marvell,pxa-ohci",	0x4c000000, "pxa27x-ohci", NULL),
 	OF_DEV_AUXDATA("mrvl,pxa-i2c",		0x40301680, "pxa2xx-i2c.0", NULL),
-	OF_DEV_AUXDATA("mrvl,pwri2c",		0x40f500c0, "pxa3xx-i2c.1", NULL),
+	OF_DEV_AUXDATA("mrvl,pwri2c",		0x40f500c0, "pxa3xx-pwri2c.1", NULL),
 	OF_DEV_AUXDATA("marvell,pxa3xx-nand",	0x43100000, "pxa3xx-nand", NULL),
 	OF_DEV_AUXDATA("mrvl,pxa3xx-ssp",	0x41000000, "pxa3xx-ssp.0", NULL),
 	OF_DEV_AUXDATA("mrvl,pxa3xx-ssp",	0x41700000, "pxa3xx-ssp.1", NULL),
