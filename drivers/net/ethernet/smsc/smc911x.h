@@ -28,6 +28,7 @@
 #ifndef _SMC911X_H_
 #define _SMC911X_H_
 
+#include <linux/dmaengine.h>
 #include <linux/smc911x.h>
 /*
  * Use the DMA feature on PXA chips
@@ -101,8 +102,8 @@ struct smc911x_local {
 #ifdef SMC_USE_DMA
 	/* DMA needs the physical address of the chip */
 	u_long physaddr;
-	int rxdma;
-	int txdma;
+	struct dma_chan	*rxdma;
+	struct dma_chan *txdma;
 	int rxdma_active;
 	int txdma_active;
 	struct sk_buff *current_rx_skb;
@@ -210,27 +211,6 @@ static inline void SMC_outsl(struct smc911x_local *lp, int reg,
 
 #ifdef SMC_USE_PXA_DMA
 
-#include <mach/dma.h>
-
-/*
- * Define the request and free functions
- * These are unfortunately architecture specific as no generic allocation
- * mechanism exits
- */
-#define SMC_DMA_REQUEST(dev, handler) \
-	 pxa_request_dma(dev->name, DMA_PRIO_LOW, handler, dev)
-
-#define SMC_DMA_FREE(dev, dma) \
-	 pxa_free_dma(dma)
-
-#define SMC_DMA_ACK_IRQ(dev, dma)					\
-{									\
-	if (DCSR(dma) & DCSR_BUSERR) {					\
-		netdev_err(dev, "DMA %d bus error!\n", dma);		\
-	}								\
-	DCSR(dma) = DCSR_STARTINTR|DCSR_ENDINTR|DCSR_BUSERR;		\
-}
-
 /*
  * Use a DMA for RX and TX packets.
  */
@@ -239,6 +219,9 @@ static inline void SMC_outsl(struct smc911x_local *lp, int reg,
 static dma_addr_t rx_dmabuf, tx_dmabuf;
 static int rx_dmalen, tx_dmalen;
 
+static void smc911x_tx_dma_irq(void *param);
+static void smc911x_rx_dma_irq(void *param);
+
 #ifdef SMC_insl
 #undef SMC_insl
 #define SMC_insl(lp, r, p, l) \
@@ -246,8 +229,17 @@ static int rx_dmalen, tx_dmalen;
 
 static inline void
 smc_pxa_dma_insl(struct smc911x_local *lp, u_long physaddr,
-		int reg, int dma, u_char *buf, int len)
+		int reg, struct dma_chan *chan, u_char *buf, int len)
 {
+	struct dma_async_tx_descriptor *tx;
+	struct dma_slave_config conf;
+
+	memset(&conf, 0, sizeof(conf));
+
+	conf.direction = DMA_DEV_TO_MEM;
+	conf.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	conf.src_maxburst = 32;
+
 	/* 64 bit alignment is required for memory to memory DMA */
 	if ((long)buf & 4) {
 		*((u32 *)buf) = SMC_inl(lp, reg);
@@ -258,12 +250,16 @@ smc_pxa_dma_insl(struct smc911x_local *lp, u_long physaddr,
 	len *= 4;
 	rx_dmabuf = dma_map_single(lp->dev, buf, len, DMA_FROM_DEVICE);
 	rx_dmalen = len;
-	DCSR(dma) = DCSR_NODESC;
-	DTADR(dma) = rx_dmabuf;
-	DSADR(dma) = physaddr + reg;
-	DCMD(dma) = (DCMD_INCTRGADDR | DCMD_BURST32 |
-		DCMD_WIDTH4 | DCMD_ENDIRQEN | (DCMD_LENGTH & rx_dmalen));
-	DCSR(dma) = DCSR_NODESC | DCSR_RUN;
+
+	dmaengine_slave_config(chan, &conf);
+	tx = chan->device->device_prep_dma_memcpy(chan, rx_dmabuf,
+						  physaddr + reg, len, 0);
+
+	tx->callback = smc911x_rx_dma_irq;
+	tx->callback_param = lp->netdev;
+
+	dmaengine_submit(tx);
+	dma_async_issue_pending(chan);
 }
 #endif
 
@@ -274,8 +270,17 @@ smc_pxa_dma_insl(struct smc911x_local *lp, u_long physaddr,
 
 static inline void
 smc_pxa_dma_outsl(struct smc911x_local *lp, u_long physaddr,
-		int reg, int dma, u_char *buf, int len)
+		int reg, struct dma_chan *chan, u_char *buf, int len)
 {
+	struct dma_async_tx_descriptor *tx;
+	struct dma_slave_config conf;
+
+	memset(&conf, 0, sizeof(conf));
+
+	conf.direction = DMA_MEM_TO_DEV;
+	conf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	conf.dst_maxburst = 32;
+
 	/* 64 bit alignment is required for memory to memory DMA */
 	if ((long)buf & 4) {
 		SMC_outl(*((u32 *)buf), lp, reg);
@@ -286,12 +291,16 @@ smc_pxa_dma_outsl(struct smc911x_local *lp, u_long physaddr,
 	len *= 4;
 	tx_dmabuf = dma_map_single(lp->dev, buf, len, DMA_TO_DEVICE);
 	tx_dmalen = len;
-	DCSR(dma) = DCSR_NODESC;
-	DSADR(dma) = tx_dmabuf;
-	DTADR(dma) = physaddr + reg;
-	DCMD(dma) = (DCMD_INCSRCADDR | DCMD_BURST32 |
-		DCMD_WIDTH4 | DCMD_ENDIRQEN | (DCMD_LENGTH & tx_dmalen));
-	DCSR(dma) = DCSR_NODESC | DCSR_RUN;
+
+	dmaengine_slave_config(chan, &conf);
+	tx = chan->device->device_prep_dma_memcpy(chan, physaddr + reg,
+						  tx_dmabuf, len, 0);
+
+	tx->callback = smc911x_tx_dma_irq;
+	tx->callback_param = lp->netdev;
+
+	dmaengine_submit(tx);
+	dma_async_issue_pending(chan);
 }
 #endif
 #endif	 /* SMC_USE_PXA_DMA */

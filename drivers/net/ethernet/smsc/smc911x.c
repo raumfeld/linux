@@ -1174,9 +1174,9 @@ static irqreturn_t smc911x_interrupt(int irq, void *dev_id)
 
 #ifdef SMC_USE_DMA
 static void
-smc911x_tx_dma_irq(int dma, void *data)
+smc911x_tx_dma_irq(void *param)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = (struct net_device *) param;
 	struct smc911x_local *lp = netdev_priv(dev);
 	struct sk_buff *skb = lp->current_tx_skb;
 	unsigned long flags;
@@ -1185,7 +1185,6 @@ smc911x_tx_dma_irq(int dma, void *data)
 
 	DBG(SMC_DEBUG_TX | SMC_DEBUG_DMA, dev, "TX DMA irq handler\n");
 	/* Clear the DMA interrupt sources */
-	SMC_DMA_ACK_IRQ(dev, dma);
 	BUG_ON(skb == NULL);
 	dma_unmap_single(NULL, tx_dmabuf, tx_dmalen, DMA_TO_DEVICE);
 	dev->trans_start = jiffies;
@@ -1208,9 +1207,9 @@ smc911x_tx_dma_irq(int dma, void *data)
 	    "TX DMA irq completed\n");
 }
 static void
-smc911x_rx_dma_irq(int dma, void *data)
+smc911x_rx_dma_irq(void *param)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = (struct net_device *) param;
 	struct smc911x_local *lp = netdev_priv(dev);
 	struct sk_buff *skb = lp->current_rx_skb;
 	unsigned long flags;
@@ -1219,7 +1218,6 @@ smc911x_rx_dma_irq(int dma, void *data)
 	DBG(SMC_DEBUG_FUNC, dev, "--> %s\n", __func__);
 	DBG(SMC_DEBUG_RX | SMC_DEBUG_DMA, dev, "RX DMA irq handler\n");
 	/* Clear the DMA interrupt sources */
-	SMC_DMA_ACK_IRQ(dev, dma);
 	dma_unmap_single(NULL, rx_dmabuf, rx_dmalen, DMA_FROM_DEVICE);
 	BUG_ON(skb == NULL);
 	lp->current_rx_skb = NULL;
@@ -1748,6 +1746,37 @@ static int smc911x_findirq(struct net_device *dev)
 	return probe_irq_off(cookie);
 }
 
+#ifdef SMC_USE_DMA
+static void smc_alloc_dma(struct net_device *dev,
+			  struct smc911x_local *lp)
+{
+	dma_cap_mask_t mask;
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_MEMCPY, mask);
+
+	lp->rxdma = dma_request_channel(mask, NULL, NULL);
+	if (!lp->rxdma) {
+		printk("%s(): unable to allocate RX channel\n", __func__);
+		return;
+	}
+
+	lp->txdma = dma_request_channel(mask, NULL, NULL);
+	if (!lp->txdma) {
+		printk("%s(): unable to allocate TX channel\n", __func__);
+		return;
+	}
+
+	lp->rxdma_active = 0;
+	lp->txdma_active = 0;
+}
+#else
+static inline void smc_alloc_dma(struct net_device *dev,
+				 struct smc911x_local *lp)
+{
+}
+#endif
+
 static const struct net_device_ops smc911x_netdev_ops = {
 	.ndo_open		= smc911x_open,
 	.ndo_stop		= smc911x_close,
@@ -1965,13 +1994,7 @@ static int smc911x_probe(struct net_device *dev)
 	if (retval)
 		goto err_out;
 
-#ifdef SMC_USE_DMA
-	lp->rxdma = SMC_DMA_REQUEST(dev, smc911x_rx_dma_irq);
-	lp->txdma = SMC_DMA_REQUEST(dev, smc911x_tx_dma_irq);
-	lp->rxdma_active = 0;
-	lp->txdma_active = 0;
-	dev->dma = lp->rxdma;
-#endif
+	smc_alloc_dma(dev, lp);
 
 	retval = register_netdev(dev);
 	if (retval == 0) {
@@ -1981,11 +2004,11 @@ static int smc911x_probe(struct net_device *dev)
 			    dev->base_addr, dev->irq);
 
 #ifdef SMC_USE_DMA
-		if (lp->rxdma != -1)
-			pr_cont(" RXDMA %d", lp->rxdma);
+		if (lp->rxdma)
+			pr_cont(" RXDMA %p", lp->rxdma);
 
-		if (lp->txdma != -1)
-			pr_cont(" TXDMA %d", lp->txdma);
+		if (lp->txdma)
+			pr_cont("TXDMA %p", lp->txdma);
 #endif
 		pr_cont("\n");
 		if (!is_valid_ether_addr(dev->dev_addr)) {
@@ -2008,11 +2031,14 @@ static int smc911x_probe(struct net_device *dev)
 err_out:
 #ifdef SMC_USE_DMA
 	if (retval) {
-		if (lp->rxdma != -1) {
-			SMC_DMA_FREE(dev, lp->rxdma);
+		if (lp->rxdma) {
+			dmaengine_terminate_all(lp->rxdma);
+			dma_release_channel(lp->rxdma);
 		}
-		if (lp->txdma != -1) {
-			SMC_DMA_FREE(dev, lp->txdma);
+
+		if (lp->txdma) {
+			dmaengine_terminate_all(lp->txdma);
+			dma_release_channel(lp->txdma);
 		}
 	}
 #endif
@@ -2115,12 +2141,11 @@ static int smc911x_drv_remove(struct platform_device *pdev)
 
 #ifdef SMC_USE_DMA
 	{
-		if (lp->rxdma != -1) {
-			SMC_DMA_FREE(dev, lp->rxdma);
-		}
-		if (lp->txdma != -1) {
-			SMC_DMA_FREE(dev, lp->txdma);
-		}
+		if (lp->rxdma)
+			dma_release_channel(lp->rxdma);
+
+		if (lp->txdma)
+			dma_release_channel(lp->txdma);
 	}
 #endif
 	iounmap(lp->base);
