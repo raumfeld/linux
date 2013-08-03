@@ -33,6 +33,7 @@
 #ifndef _SMC91X_H_
 #define _SMC91X_H_
 
+#include <linux/dmaengine.h>
 #include <linux/smc91x.h>
 
 /*
@@ -145,7 +146,6 @@ static inline void SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 #define SMC_CAN_USE_32BIT	1
 #define SMC_IO_SHIFT		0
 #define SMC_NOWAIT		1
-#define SMC_USE_PXA_DMA		1
 
 #define SMC_inb(a, r)		readb((a) + (r))
 #define SMC_inw(a, r)		readw((a) + (r))
@@ -323,11 +323,8 @@ struct smc_local {
 
 	spinlock_t lock;
 
-#ifdef CONFIG_ARCH_PXA
-	/* DMA needs the physical address of the chip */
-	u_long physaddr;
-	struct device *device;
-#endif
+	struct dma_chan	*dma_channel;
+
 	void __iomem *base;
 	void __iomem *datacs;
 
@@ -341,15 +338,31 @@ struct smc_local {
 #define SMC_16BIT(p)	((p)->cfg.flags & SMC91X_USE_16BIT)
 #define SMC_32BIT(p)	((p)->cfg.flags & SMC91X_USE_32BIT)
 
-#ifdef CONFIG_ARCH_PXA
+#ifdef CONFIG_ASYNC_TX_DMA
 /*
- * Let's use the DMA engine on the XScale PXA2xx for RX packets. This is
+ * Let's use the generic DMA buffer-to-buffer offload mechanism. This is
  * always happening in irq context so no need to worry about races.  TX is
  * different and probably not worth it for that reason, and not as critical
  * as RX which can overrun memory and lose packets.
  */
-#include <linux/dma-mapping.h>
-#include <mach/dma.h>
+
+static void smc_dma_copy(struct smc_local *lp, void *dest, void *src,
+			 unsigned int len)
+{
+	dma_cookie_t cookie;
+	cookie = dma_async_memcpy_buf_to_buf(lp->dma_channel, dest, src, len);
+
+	while (1) {
+		struct dma_tx_state state;
+		enum dma_status status;
+
+		status = dmaengine_tx_status(lp->dma_channel, cookie, &state);
+		if (status != DMA_IN_PROGRESS)
+			break;
+
+		cpu_relax();
+	}
+}
 
 #ifdef SMC_insl
 #undef SMC_insl
@@ -359,11 +372,8 @@ static inline void
 smc_pxa_dma_insl(void __iomem *ioaddr, struct smc_local *lp, int reg, int dma,
 		 u_char *buf, int len)
 {
-	u_long physaddr = lp->physaddr;
-	dma_addr_t dmabuf;
-
 	/* fallback if no DMA available */
-	if (dma == (unsigned char)-1) {
+	if (lp->dma_channel == NULL) {
 		readsl(ioaddr + reg, buf, len);
 		return;
 	}
@@ -375,18 +385,7 @@ smc_pxa_dma_insl(void __iomem *ioaddr, struct smc_local *lp, int reg, int dma,
 		len--;
 	}
 
-	len *= 4;
-	dmabuf = dma_map_single(lp->device, buf, len, DMA_FROM_DEVICE);
-	DCSR(dma) = DCSR_NODESC;
-	DTADR(dma) = dmabuf;
-	DSADR(dma) = physaddr + reg;
-	DCMD(dma) = (DCMD_INCTRGADDR | DCMD_BURST32 |
-		     DCMD_WIDTH4 | (DCMD_LENGTH & len));
-	DCSR(dma) = DCSR_NODESC | DCSR_RUN;
-	while (!(DCSR(dma) & DCSR_STOPSTATE))
-		cpu_relax();
-	DCSR(dma) = 0;
-	dma_unmap_single(lp->device, dmabuf, len, DMA_FROM_DEVICE);
+	smc_dma_copy(lp, buf, (__u32 *) ioaddr + reg, len * 4);
 }
 #endif
 
@@ -398,11 +397,8 @@ static inline void
 smc_pxa_dma_insw(void __iomem *ioaddr, struct smc_local *lp, int reg, int dma,
 		 u_char *buf, int len)
 {
-	u_long physaddr = lp->physaddr;
-	dma_addr_t dmabuf;
-
 	/* fallback if no DMA available */
-	if (dma == (unsigned char)-1) {
+	if (lp->dma_channel == NULL) {
 		readsw(ioaddr + reg, buf, len);
 		return;
 	}
@@ -414,27 +410,11 @@ smc_pxa_dma_insw(void __iomem *ioaddr, struct smc_local *lp, int reg, int dma,
 		len--;
 	}
 
-	len *= 2;
-	dmabuf = dma_map_single(lp->device, buf, len, DMA_FROM_DEVICE);
-	DCSR(dma) = DCSR_NODESC;
-	DTADR(dma) = dmabuf;
-	DSADR(dma) = physaddr + reg;
-	DCMD(dma) = (DCMD_INCTRGADDR | DCMD_BURST32 |
-		     DCMD_WIDTH2 | (DCMD_LENGTH & len));
-	DCSR(dma) = DCSR_NODESC | DCSR_RUN;
-	while (!(DCSR(dma) & DCSR_STOPSTATE))
-		cpu_relax();
-	DCSR(dma) = 0;
-	dma_unmap_single(lp->device, dmabuf, len, DMA_FROM_DEVICE);
+	smc_dma_copy(lp, buf, (__u32 *) ioaddr + reg, len * 2);
 }
 #endif
 
-static void
-smc_pxa_dma_irq(int dma, void *dummy)
-{
-	DCSR(dma) = 0;
-}
-#endif  /* CONFIG_ARCH_PXA */
+#endif  /* CONFIG_HAS_DMA */
 
 
 /*

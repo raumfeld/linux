@@ -2010,17 +2010,17 @@ static int smc_probe(struct net_device *dev, void __iomem *ioaddr,
       	if (retval)
       		goto err_out;
 
-#ifdef CONFIG_ARCH_PXA
-#  ifdef SMC_USE_PXA_DMA
-	lp->cfg.flags |= SMC91X_USE_DMA;
-#  endif
 	if (lp->cfg.flags & SMC91X_USE_DMA) {
-		int dma = pxa_request_dma(dev->name, DMA_PRIO_LOW,
-					  smc_pxa_dma_irq, NULL);
-		if (dma >= 0)
-			dev->dma = dma;
+		dma_cap_mask_t mask;
+
+		dma_cap_zero(mask);
+		dma_cap_set(DMA_MEMCPY, mask);
+		lp->dma_channel = dma_request_channel(mask, NULL, NULL);
+
+		if (!lp->dma_channel)
+			printk("%s(): request of DMA channel failed\n",
+				__func__);
 	}
-#endif
 
 	retval = register_netdev(dev);
 	if (retval == 0) {
@@ -2028,9 +2028,6 @@ static int smc_probe(struct net_device *dev, void __iomem *ioaddr,
 		netdev_info(dev, "%s (rev %d) at %p IRQ %d",
 			    version_string, revision_register & 0x0f,
 			    lp->base, dev->irq);
-
-		if (dev->dma != (unsigned char)-1)
-			pr_cont(" DMA %d", dev->dma);
 
 		pr_cont("%s%s\n",
 			lp->cfg.flags & SMC91X_NOWAIT ? " [nowait]" : "",
@@ -2054,10 +2051,6 @@ static int smc_probe(struct net_device *dev, void __iomem *ioaddr,
 	}
 
 err_out:
-#ifdef CONFIG_ARCH_PXA
-	if (retval && dev->dma != (unsigned char)-1)
-		pxa_free_dma(dev->dma);
-#endif
 	return retval;
 }
 
@@ -2310,14 +2303,6 @@ static int smc_drv_probe(struct platform_device *pdev)
 		goto out_release_attrib;
 	}
 
-#ifdef CONFIG_ARCH_PXA
-	{
-		struct smc_local *lp = netdev_priv(ndev);
-		lp->device = &pdev->dev;
-		lp->physaddr = res->start;
-	}
-#endif
-
 	ret = smc_probe(ndev, addr, irq_flags);
 	if (ret != 0)
 		goto out_iounmap;
@@ -2348,12 +2333,11 @@ static int smc_drv_remove(struct platform_device *pdev)
 
 	unregister_netdev(ndev);
 
+	if (lp->dma_channel)
+		dma_release_channel(lp->dma_channel);
+
 	free_irq(ndev->irq, ndev);
 
-#ifdef CONFIG_ARCH_PXA
-	if (ndev->dma != (unsigned char)-1)
-		pxa_free_dma(ndev->dma);
-#endif
 	iounmap(lp->base);
 
 	smc_release_datacs(pdev,ndev);
