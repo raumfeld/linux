@@ -46,6 +46,32 @@ struct platform_device pxa_device_pmu = {
 	.num_resources	= 1,
 };
 
+static struct resource pxadma_resources[] = {
+	[0] = {
+		.start	= 0x40000000,
+		.end	= 0x40001fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_DMA,
+		.end	= IRQ_DMA,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static u64 pxadma_dmamask = 0xffffffffUL;
+
+struct platform_device pxa_device_dma = {
+	.name		= "mmp-pdma",
+	.id		= 0,
+	.dev		= {
+		.dma_mask = &pxadma_dmamask,
+		.coherent_dma_mask = 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(pxadma_resources),
+	.resource	= pxadma_resources,
+};
+
 static struct resource pxamci_resources[] = {
 	[0] = {
 		.start	= 0x41100000,

@@ -25,6 +25,7 @@
 #include <linux/suspend.h>
 #include <linux/syscore_ops.h>
 #include <linux/irq.h>
+#include <linux/platform_data/mmp_dma.h>
 
 #include <asm/mach/map.h>
 #include <asm/suspend.h>
@@ -33,7 +34,6 @@
 #include <mach/pxa25x.h>
 #include <mach/reset.h>
 #include <mach/pm.h>
-#include <mach/dma.h>
 #include <mach/smemc.h>
 
 #include "generic.h"
@@ -348,6 +348,10 @@ static struct pxa_gpio_platform_data pxa25x_gpio_info __initdata = {
 	.gpio_set_wake	= gpio_set_wake,
 };
 
+static struct mmp_dma_platdata pxa25x_dma_data __initdata = {
+	.dma_channels	= 16,
+};
+
 static struct platform_device *pxa25x_devices[] __initdata = {
 	&pxa25x_device_udc,
 	&pxa_device_pmu,
@@ -371,8 +375,7 @@ static int __init pxa25x_init(void)
 
 		clkdev_add_table(pxa25x_clkregs, ARRAY_SIZE(pxa25x_clkregs));
 
-		if ((ret = pxa_init_dma(IRQ_DMA, 16)))
-			return ret;
+		pxa_register_device(&pxa_device_dma, &pxa25x_dma_data);
 
 		pxa25x_init_pm();
 

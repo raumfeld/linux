@@ -23,6 +23,7 @@
 #include <linux/of.h>
 #include <linux/syscore_ops.h>
 #include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/mmp_dma.h>
 
 #include <asm/mach/map.h>
 #include <asm/suspend.h>
@@ -31,7 +32,6 @@
 #include <mach/reset.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <mach/pm.h>
-#include <mach/dma.h>
 #include <mach/smemc.h>
 #include <mach/irqs.h>
 
@@ -441,6 +441,10 @@ static struct pxa_gpio_platform_data pxa3xx_gpio_pdata = {
 	.irq_base	= PXA_GPIO_TO_IRQ(0),
 };
 
+static struct mmp_dma_platdata pxa3xx_dma_data __initdata = {
+	.dma_channels = 32,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&pxa27x_device_udc,
 	&pxa_device_pmu,
@@ -478,9 +482,6 @@ static int __init pxa3xx_init(void)
 
 		clkdev_add_table(pxa3xx_clkregs, ARRAY_SIZE(pxa3xx_clkregs));
 
-		if ((ret = pxa_init_dma(IRQ_DMA, 32)))
-			return ret;
-
 		pxa3xx_init_pm();
 
 		register_syscore_ops(&pxa_irq_syscore_ops);
@@ -489,6 +490,8 @@ static int __init pxa3xx_init(void)
 
 		if (of_have_populated_dt())
 			return 0;
+
+		pxa_register_device(&pxa_device_dma, &pxa3xx_dma_data);
 
 		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 		if (ret)

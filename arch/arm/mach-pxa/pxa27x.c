@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/mmp_dma.h>
 
 #include <asm/mach/map.h>
 #include <mach/hardware.h>
@@ -32,7 +33,6 @@
 #include <mach/reset.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <mach/pm.h>
-#include <mach/dma.h>
 #include <mach/smemc.h>
 
 #include "generic.h"
@@ -435,6 +435,10 @@ static struct pxa_gpio_platform_data pxa27x_gpio_info __initdata = {
 	.gpio_set_wake	= gpio_set_wake,
 };
 
+static struct mmp_dma_platdata pxa27x_dma_data __initdata = {
+	.dma_channels = 32,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&pxa27x_device_udc,
 	&pxa_device_pmu,
@@ -462,8 +466,7 @@ static int __init pxa27x_init(void)
 
 		clkdev_add_table(pxa27x_clkregs, ARRAY_SIZE(pxa27x_clkregs));
 
-		if ((ret = pxa_init_dma(IRQ_DMA, 32)))
-			return ret;
+		pxa_register_device(&pxa_device_dma, &pxa27x_dma_data);
 
 		pxa27x_init_pm();
 
