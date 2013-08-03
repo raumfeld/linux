@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/mv_usb.h>
+#include <linux/platform_data/mmp_dma.h>
 
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
@@ -23,7 +24,6 @@
 #include <mach/regs-apbc.h>
 #include <mach/regs-apmu.h>
 #include <mach/irqs.h>
-#include <mach/dma.h>
 #include <mach/devices.h>
 #include <mach/mfp.h>
 #include <linux/dma-mapping.h>
@@ -50,12 +50,19 @@ void __init pxa168_init_irq(void)
 	icu_init_irq();
 }
 
+static struct mmp_dma_platdata pxa168_dma_data __initdata = {
+	.dma_channels   = 32,
+};
+
+PXA168_DEVICE(dma, "mmp-pdma", 0, DMA_INT0, 0x40000000, 0x2000);
+
 static int __init pxa168_init(void)
 {
 	if (cpu_is_pxa168()) {
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(pxa168_mfp_addr_map);
-		pxa_init_dma(IRQ_PXA168_DMA_INT0, 32);
+		pxa_register_device(&pxa168_device_dma, &pxa168_dma_data,
+				    sizeof(pxa168_dma_data));
 		pxa168_clk_init();
 	}
 

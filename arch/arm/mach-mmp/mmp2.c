@@ -16,6 +16,7 @@
 #include <linux/irq.h>
 #include <linux/irqchip/mmp.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/mmp_dma.h>
 
 #include <asm/hardware/cache-tauros2.h>
 
@@ -24,7 +25,6 @@
 #include <mach/regs-apbc.h>
 #include <mach/cputype.h>
 #include <mach/irqs.h>
-#include <mach/dma.h>
 #include <mach/mfp.h>
 #include <mach/devices.h>
 #include <mach/mmp2.h>
@@ -102,6 +102,12 @@ void __init mmp2_init_irq(void)
 #endif
 }
 
+static struct mmp_dma_platdata mmp2_dma_data __initdata = {
+	.dma_channels   = 16,
+};
+
+MMP2_DEVICE(dma, "mmp-pdma", 0, DMA_RIQ, 0x40000000, 0x2000);
+
 static int __init mmp2_init(void)
 {
 	if (cpu_is_mmp2()) {
@@ -110,7 +116,8 @@ static int __init mmp2_init(void)
 #endif
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(mmp2_addr_map);
-		pxa_init_dma(IRQ_MMP2_DMA_RIQ, 16);
+		pxa_register_device(&mmp2_device_dma, &mmp2_dma_data,
+				    sizeof(mmp2_dma_data));
 		mmp2_clk_init();
 	}
 
