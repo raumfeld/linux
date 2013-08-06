@@ -32,3 +32,29 @@ void __init omap_reserve(void)
 	omap_secure_ram_reserve_memblock();
 	omap_barrier_reserve_memblock();
 }
+
+static phys_addr_t am33xx_paddr;
+static u32 am33xx_size;
+
+/* Steal one page physical memory for uncached read DeepSleep */
+void __init am33xx_reserve(void)
+{
+	am33xx_size = ALIGN(PAGE_SIZE, SZ_1M);
+	am33xx_paddr = arm_memblock_steal(am33xx_size, SZ_1M);
+}
+
+void __iomem *am33xx_dram_sync;
+
+void __init am33xx_dram_sync_init(void)
+{
+	struct map_desc dram_io_desc[1];
+
+	dram_io_desc[0].virtual = __phys_to_virt(am33xx_paddr);
+	dram_io_desc[0].pfn = __phys_to_pfn(am33xx_paddr);
+	dram_io_desc[0].length = am33xx_size;
+	dram_io_desc[0].type = MT_MEMORY_RW_SO;
+
+	iotable_init(dram_io_desc, ARRAY_SIZE(dram_io_desc));
+
+	am33xx_dram_sync = (void __iomem *) dram_io_desc[0].virtual;
+}
