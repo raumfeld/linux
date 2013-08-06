@@ -311,7 +311,8 @@ int __init omap2_common_pm_late_init(void)
 	omap_init_cpufreq();
 
 #ifdef CONFIG_SUSPEND
-	suspend_set_ops(&omap_pm_ops);
+	if (!soc_is_am33xx())
+		suspend_set_ops(&omap_pm_ops);
 #endif
 
 	return 0;
