@@ -1907,7 +1907,15 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	if (mmc_slot(host).nonremovable)
 		mmc->caps |= MMC_CAP_NONREMOVABLE;
 
-	mmc->pm_caps = mmc_slot(host).pm_caps;
+	if (pdev->dev.of_node) {
+		ret = mmc_of_parse(mmc);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "mmc_of_parse() failed: %d\n", ret);
+			goto err_irq;
+		}
+	} else {
+		mmc->pm_caps = mmc_slot(host).pm_caps;
+	}
 
 	omap_hsmmc_conf_bus_power(host);
 
