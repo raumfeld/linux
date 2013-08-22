@@ -372,6 +372,7 @@ struct cpsw_priv {
 	struct cpsw_platform_data	data;
 	struct cpsw_ss_regs __iomem	*regs;
 	struct cpsw_wr_regs __iomem	*wr_regs;
+	u32 __iomem			*gmii_sel_reg;
 	u8 __iomem			*hw_stats;
 	struct cpsw_host_regs __iomem	*host_port_regs;
 	u32				msg_enable;
@@ -1987,6 +1988,16 @@ static int cpsw_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->wr_regs)) {
 		ret = PTR_ERR(priv->wr_regs);
 		goto clean_runtime_disable_ret;
+	}
+
+	/* Don't fail hard if the optional control memory region is missing */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+	if (res) {
+		priv->gmii_sel_reg = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(priv->gmii_sel_reg)) {
+			ret = PTR_ERR(priv->gmii_sel_reg);
+			goto clean_runtime_disable_ret;
+		}
 	}
 
 	memset(&dma_params, 0, sizeof(dma_params));
