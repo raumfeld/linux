@@ -980,6 +980,60 @@ static inline void cpsw_add_dual_emac_def_ale_entries(
 		priv->host_port, ALE_VLAN, slave->port_vlan);
 }
 
+static void cpsw_set_phy_interface_mode(struct cpsw_slave *slave,
+					struct cpsw_priv *priv)
+{
+	u32 reg;
+	u32 mask;
+	u32 mode = 0;
+
+	switch (priv->data.hw_type) {
+	case CPSW_TYPE_AM33XX:
+		if (IS_ERR_OR_NULL(priv->gmii_sel_reg))
+			break;
+
+		reg = readl(priv->gmii_sel_reg);
+
+		if (slave->phy) {
+			switch (slave->phy->interface) {
+			case PHY_INTERFACE_MODE_MII:
+			default:
+				mode = AM33XX_GMII_SEL_MODE_MII;
+				break;
+			case PHY_INTERFACE_MODE_RMII:
+				mode = AM33XX_GMII_SEL_MODE_RMII;
+				break;
+			case PHY_INTERFACE_MODE_RGMII:
+			case PHY_INTERFACE_MODE_RGMII_ID:
+			case PHY_INTERFACE_MODE_RGMII_RXID:
+			case PHY_INTERFACE_MODE_RGMII_TXID:
+				mode = AM33XX_GMII_SEL_MODE_RGMII;
+				break;
+			};
+		}
+
+		mask = 0x3 << (slave->slave_num * 2) |
+		       BIT(slave->slave_num + 6);
+		mode <<= slave->slave_num * 2;
+
+		if (slave->data->rmii_clock_external) {
+			if (slave->slave_num == 0)
+				mode |= AM33XX_GMII_SEL_RMII1_IO_CLK_EN;
+			else
+				mode |= AM33XX_GMII_SEL_RMII2_IO_CLK_EN;
+		}
+
+		reg &= ~mask;
+		reg |= mode;
+
+		writel(reg, priv->gmii_sel_reg);
+		break;
+
+	default:
+		break;
+	}
+}
+
 static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 {
 	char name[32];
@@ -1028,6 +1082,8 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 			 slave->phy->phy_id);
 		phy_start(slave->phy);
 	}
+
+	cpsw_set_phy_interface_mode(slave, priv);
 }
 
 static inline void cpsw_add_default_vlan(struct cpsw_priv *priv)
@@ -1823,6 +1879,8 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			memcpy(slave_data->mac_addr, mac_addr, ETH_ALEN);
 
 		slave_data->phy_if = of_get_phy_mode(slave_node);
+		if (of_find_property(slave_node, "ti,rmii-clock-ext", NULL))
+			slave_data->rmii_clock_external = true;
 
 		if (data->dual_emac) {
 			if (of_property_read_u32(slave_node, "dual_emac_res_vlan",

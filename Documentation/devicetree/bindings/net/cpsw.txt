@@ -34,6 +34,8 @@ Required properties:
 - phy_id		: Specifies slave phy id
 - phy-mode		: The interface between the SoC and the PHY (a string
 			  that of_get_phy_mode() can understand)
+- ti,rmii-clock-ext	: If present, the driver will configure the RMII
+			  interface to external clock usage
 - mac-address		: Specifies slave MAC address
 
 Optional properties:

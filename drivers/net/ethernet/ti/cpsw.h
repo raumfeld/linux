@@ -19,6 +19,7 @@
 struct cpsw_slave_data {
 	char		phy_id[MII_BUS_ID_SIZE];
 	int		phy_if;
+	bool		rmii_clock_external;
 	u8		mac_addr[ETH_ALEN];
 	u16		dual_emac_res_vlan;	/* Reserved VLAN for DualEMAC */
 };
@@ -40,4 +41,11 @@ struct cpsw_platform_data {
 	u32	hw_type;	/* hardware type as specified in 'compatible' */
 };
 
+/* SoC specific definitions for the CONTROL port */
+#define AM33XX_GMII_SEL_MODE_MII	0
+#define AM33XX_GMII_SEL_MODE_RMII	1
+#define AM33XX_GMII_SEL_MODE_RGMII	2
+
+#define AM33XX_GMII_SEL_RMII2_IO_CLK_EN	BIT(7)
+#define AM33XX_GMII_SEL_RMII1_IO_CLK_EN	BIT(6)
 #endif /* __CPSW_H__ */
