@@ -155,6 +155,11 @@ do {								\
 		((priv->data.dual_emac) ? priv->emac_port :	\
 		priv->data.active_slave)
 
+enum {
+	CPSW_TYPE_GENERIC,
+	CPSW_TYPE_AM33XX
+};
+
 static int debug_level;
 module_param(debug_level, int, 0);
 MODULE_PARM_DESC(debug_level, "cpsw debug level (NETIF_MSG bits)");
@@ -1692,16 +1697,35 @@ static void cpsw_slave_init(struct cpsw_slave *slave, struct cpsw_priv *priv,
 	slave->port_vlan = data->dual_emac_res_vlan;
 }
 
+static const struct of_device_id cpsw_of_mtable[] = {
+	{
+		.compatible	= "ti,am3352-cpsw",
+		.data		= (void *) CPSW_TYPE_AM33XX
+	}, {
+		.compatible	= "ti,cpsw",
+		.data		= (void *) CPSW_TYPE_GENERIC
+	},
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, cpsw_of_mtable);
+
 static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			 struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
+	const struct of_device_id *match;
 	struct device_node *slave_node;
+	unsigned long match_data;
 	int i = 0, ret;
 	u32 prop;
 
-	if (!node)
+	match = of_match_device(cpsw_of_mtable, &pdev->dev);
+
+	if (!node || !match)
 		return -EINVAL;
+
+	match_data = (unsigned long) match->data;
+	data->hw_type = match_data;
 
 	if (of_property_read_u32(node, "slaves", &prop)) {
 		pr_err("Missing slaves property in the DT.\n");
@@ -2212,12 +2236,6 @@ static const struct dev_pm_ops cpsw_pm_ops = {
 	.suspend	= cpsw_suspend,
 	.resume		= cpsw_resume,
 };
-
-static const struct of_device_id cpsw_of_mtable[] = {
-	{ .compatible = "ti,cpsw", },
-	{ /* sentinel */ },
-};
-MODULE_DEVICE_TABLE(of, cpsw_of_mtable);
 
 static struct platform_driver cpsw_driver = {
 	.driver = {

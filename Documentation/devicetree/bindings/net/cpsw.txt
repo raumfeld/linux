@@ -2,7 +2,8 @@ TI SoC Ethernet Switch Controller Device Tree Bindings
 ------------------------------------------------------
 
 Required properties:
-- compatible		: Should be "ti,cpsw"
+- compatible		: Should be "ti,cpsw" for generic cpsw support, or
+			  "ti,am3352-cpsw" for AM3352 SoCs
 - reg			: physical base address and size of the cpsw
 			  registers map.
 			  An optional third memory region can be supplied if
