@@ -250,12 +250,13 @@ static int sigmadsp_fw_load_v2(struct snd_soc_codec *codec,
 			ret = sigma_fw_create_control(codec, sigmadsp, chunk);
 			break;
 		default:
+			ret = -EINVAL;
 			dev_warn(codec->dev, "Unkown chunk type: %d\n",
 				chunk->tag);
 			break;
 		}
 
-		if (ret)
+		if (ret < 0)
 			return ret;
 
 		pos += ALIGN(chunk->length, sizeof(__le32));
