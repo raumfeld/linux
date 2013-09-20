@@ -727,13 +727,12 @@ static void purge_descs(struct device *dev, struct cppi41_dd *cdd)
 	mem_decs = ALLOC_DECS_NUM * sizeof(struct cppi41_desc);
 
 	for (i = 0; i < DESCS_AREAS; i++) {
-
 		cppi_writel(0, cdd->qmgr_mem + QMGR_MEMBASE(i));
 		cppi_writel(0, cdd->qmgr_mem + QMGR_MEMCTRL(i));
-
-		dma_free_coherent(dev, mem_decs, cdd->cd,
-				cdd->descs_phys);
 	}
+
+	dma_free_coherent(dev, ALLOC_DECS_NUM * sizeof(struct cppi41_desc),
+			  cdd->cd, cdd->descs_phys);
 }
 
 static void disable_sched(struct cppi41_dd *cdd)
@@ -755,8 +754,7 @@ static void deinit_cppi41(struct device *dev, struct cppi41_dd *cdd)
 
 static int init_descs(struct device *dev, struct cppi41_dd *cdd)
 {
-	unsigned int desc_size;
-	unsigned int mem_decs;
+	unsigned int desc_size = sizeof(struct cppi41_desc);
 	int i;
 	u32 reg;
 	u32 idx;
@@ -765,28 +763,25 @@ static int init_descs(struct device *dev, struct cppi41_dd *cdd)
 			(sizeof(struct cppi41_desc) - 1));
 	BUILD_BUG_ON(sizeof(struct cppi41_desc) < 32);
 	BUILD_BUG_ON(ALLOC_DECS_NUM < 32);
+	BUILD_BUG_ON(DESCS_AREAS != 1);
 
-	desc_size = sizeof(struct cppi41_desc);
-	mem_decs = ALLOC_DECS_NUM * desc_size;
+	cdd->cd = dma_alloc_coherent(dev, ALLOC_DECS_NUM * desc_size,
+				     &cdd->descs_phys, GFP_KERNEL);
+	if (!cdd->cd)
+		return -ENOMEM;
 
 	idx = 0;
 	for (i = 0; i < DESCS_AREAS; i++) {
-
 		reg = idx << QMGR_MEMCTRL_IDX_SH;
 		reg |= (ilog2(desc_size) - 5) << QMGR_MEMCTRL_DESC_SH;
 		reg |= ilog2(ALLOC_DECS_NUM) - 5;
-
-		BUILD_BUG_ON(DESCS_AREAS != 1);
-		cdd->cd = dma_alloc_coherent(dev, mem_decs,
-				&cdd->descs_phys, GFP_KERNEL);
-		if (!cdd->cd)
-			return -ENOMEM;
 
 		cppi_writel(cdd->descs_phys, cdd->qmgr_mem + QMGR_MEMBASE(i));
 		cppi_writel(reg, cdd->qmgr_mem + QMGR_MEMCTRL(i));
 
 		idx += ALLOC_DECS_NUM;
 	}
+
 	return 0;
 }
 
