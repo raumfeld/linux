@@ -659,16 +659,11 @@ static int omap2430_runtime_resume(struct device *dev)
 
 	return 0;
 }
-
-static struct dev_pm_ops omap2430_pm_ops = {
-	.runtime_suspend = omap2430_runtime_suspend,
-	.runtime_resume = omap2430_runtime_resume,
-};
-
-#define DEV_PM_OPS	(&omap2430_pm_ops)
-#else
-#define DEV_PM_OPS	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(omap2430_pm_ops,
+			 omap2430_runtime_suspend,
+			 omap2430_runtime_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id omap2430_id_table[] = {
@@ -688,7 +683,7 @@ static struct platform_driver omap2430_driver = {
 	.remove		= omap2430_remove,
 	.driver		= {
 		.name	= "musb-omap2430",
-		.pm	= DEV_PM_OPS,
+		.pm	= &omap2430_pm_ops,
 		.of_match_table = of_match_ptr(omap2430_id_table),
 	},
 };
