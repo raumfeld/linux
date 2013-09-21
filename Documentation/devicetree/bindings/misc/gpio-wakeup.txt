@@ -1,0 +1,16 @@
+GPIO WAKEUP DRIVER BINDINGS
+
+Required:
+
+	compatible:	Must be "gpio-wakeup"
+	gpios:		At list of GPIO nodes that are enabled as wakeup
+			sources.
+
+
+Example:
+
+	wake_up {
+		compatible = "gpio-wakeup";
+		gpios = <&gpio0 19 0>;
+	};
+
