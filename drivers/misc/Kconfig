@@ -515,6 +515,14 @@ config SRAM
 	  the genalloc API. It is supposed to be used for small on-chip SRAM
 	  areas found on many SoCs.
 
+config GPIO_WAKEUP
+	tristate "GPIO wakeup driver"
+	depends on PM_SLEEP && OF
+	help
+	  Say Y to build a driver that can wake up a system from GPIO
+	  lines. See Documentation/devicetree/bindings/gpio-wakeup.txt
+	  for binding details.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
