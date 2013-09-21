@@ -525,6 +525,14 @@ config VEXPRESS_SYSCFG
 	  bus. System Configuration interface is one of the possible means
 	  of generating transactions on this bus.
 
+config GPIO_WAKEUP
+	tristate "GPIO wakeup driver"
+	depends on PM_SLEEP && OF
+	help
+	  Say Y to build a driver that can wake up a system from GPIO
+	  lines. See Documentation/devicetree/bindings/gpio-wakeup.txt
+	  for binding details.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
