@@ -294,6 +294,7 @@ struct musb {
 
 	irqreturn_t		(*isr)(int, void *);
 	struct work_struct	irq_work;
+
 	u16			hwvers;
 
 	u16			intrrxe;
