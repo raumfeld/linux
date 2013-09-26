@@ -2200,6 +2200,7 @@ static int musb_suspend(struct device *dev)
 {
 	struct musb	*musb = dev_to_musb(dev);
 	unsigned long	flags;
+	struct musb_hdrc_platform_data *plat = dev_get_platdata(dev);
 
 	spin_lock_irqsave(&musb->lock, flags);
 
@@ -2213,16 +2214,30 @@ static int musb_suspend(struct device *dev)
 		 */
 	}
 
+	if (plat->restore_after_suspend)
+		musb_save_context(musb);
+
 	spin_unlock_irqrestore(&musb->lock, flags);
 	return 0;
 }
 
 static int musb_resume_noirq(struct device *dev)
 {
-	/* for static cmos like DaVinci, register values were preserved
+	struct musb	*musb = dev_to_musb(dev);
+	struct musb_hdrc_platform_data *plat = dev_get_platdata(dev);
+
+	/*
+	 * For static cmos like DaVinci, register values were preserved
 	 * unless for some reason the whole soc powered down or the USB
 	 * module got reset through the PSC (vs just being disabled).
+	 *
+	 * The plaform data tells us about the necessity of saving and
+	 * restoring the context across a suspend cycle.
 	 */
+
+	if (plat->restore_after_suspend)
+		musb_restore_context(musb);
+
 	return 0;
 }
 

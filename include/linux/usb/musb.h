@@ -100,6 +100,7 @@ struct musb_hdrc_platform_data {
 	u8		mode;
 
 	u8		has_mailbox:1;
+	u8		restore_after_suspend:1;
 
 	/* for clk_get() */
 	const char	*clock;
