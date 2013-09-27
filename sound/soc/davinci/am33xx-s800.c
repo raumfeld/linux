@@ -18,6 +18,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <linux/delay.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -32,6 +33,8 @@ struct snd_soc_am33xx_s800 {
 	signed int		drift;
 	int			passive_mode_gpio;
 	int			amp_overheat_gpio;
+	int			amp_reset_gpio;
+	int			amp_reset_delay_ms;
 	struct snd_kcontrol	*amp_overheat_kctl;
 };
 
@@ -462,24 +465,81 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 			priv->amp_overheat_gpio = -EINVAL;
 	}
 
+	priv->amp_reset_gpio = of_get_named_gpio(top_node, "sue,amp-reset-gpio", 0);
+	if (gpio_is_valid(priv->amp_reset_gpio)) {
+		ret = devm_gpio_request_one(dev, priv->amp_reset_gpio,
+					    GPIOF_OUT_INIT_HIGH,
+					    "Audio Amplifier Reset");
+		if (ret < 0)
+			priv->amp_reset_gpio = -EINVAL;
+
+		of_property_read_u32(top_node, "sue,amp-reset-delay-ms",
+				     &priv->amp_reset_delay_ms);
+	}
+
 	return 0;
+}
+
+static void snd_soc_am33xx_s800_shutdown_amp(struct device *dev,
+					     struct snd_soc_am33xx_s800 *priv)
+{
+	pinctrl_pm_select_sleep_state(dev);
+
+	if (gpio_is_valid(priv->amp_reset_gpio)) {
+		gpio_set_value(priv->amp_reset_gpio, 0);
+		msleep(priv->amp_reset_delay_ms);
+	}
 }
 
 static int snd_soc_am33xx_s800_remove(struct platform_device *pdev)
 {
 	struct snd_soc_am33xx_s800 *priv = platform_get_drvdata(pdev);
 
+	snd_soc_am33xx_s800_shutdown_amp(&pdev->dev, priv);
+
 	snd_soc_unregister_card(&priv->card);
 
 	return 0;
 }
+
+static int snd_soc_am33xx_s800_suspend(struct device *dev)
+{
+        struct snd_soc_card *card = dev_get_drvdata(dev);
+	struct snd_soc_am33xx_s800 *priv = snd_soc_card_get_drvdata(card);
+
+	snd_soc_am33xx_s800_shutdown_amp(dev, priv);
+
+	return snd_soc_suspend(dev);
+}
+
+static int snd_soc_am33xx_s800_resume(struct device *dev)
+{
+	struct snd_soc_card *card = dev_get_drvdata(dev);
+	struct snd_soc_am33xx_s800 *priv = snd_soc_card_get_drvdata(card);
+
+	if (gpio_is_valid(priv->amp_reset_gpio))
+		gpio_set_value(priv->amp_reset_gpio, 1);
+
+	pinctrl_pm_select_default_state(dev);
+
+	return snd_soc_resume(dev);
+}
+
+const struct dev_pm_ops snd_soc_am33xx_s800_pm_ops = {
+	.suspend = snd_soc_am33xx_s800_suspend,
+	.resume = snd_soc_am33xx_s800_resume,
+	.freeze = snd_soc_suspend,
+	.thaw = snd_soc_resume,
+	.poweroff = snd_soc_poweroff,
+	.restore = snd_soc_resume,
+};
 
 static struct platform_driver snd_soc_am33xx_s800_driver = {
 	.driver = {
 		.owner		= THIS_MODULE,
 		.name		= "snd-soc-am33xx-s800",
 		.of_match_table	= snd_soc_am33xx_s800_match,
-		.pm		= &snd_soc_pm_ops,
+		.pm		= &snd_soc_am33xx_s800_pm_ops,
 	},
 	.probe	= snd_soc_am33xx_s800_probe,
 	.remove	= snd_soc_am33xx_s800_remove,
