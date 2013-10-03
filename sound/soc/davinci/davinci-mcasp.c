@@ -1287,13 +1287,23 @@ static int davinci_mcasp_suspend(struct device *dev)
 	struct davinci_audio_dev *a = dev_get_drvdata(dev);
 	void __iomem *base = a->base;
 
+	a->context.gblctlr = mcasp_get_reg(base + DAVINCI_MCASP_GBLCTLR_REG);
+	a->context.gblctlx = mcasp_get_reg(base + DAVINCI_MCASP_GBLCTLX_REG);
 	a->context.txfmtctl = mcasp_get_reg(base + DAVINCI_MCASP_TXFMCTL_REG);
 	a->context.rxfmtctl = mcasp_get_reg(base + DAVINCI_MCASP_RXFMCTL_REG);
 	a->context.txfmt = mcasp_get_reg(base + DAVINCI_MCASP_TXFMT_REG);
 	a->context.rxfmt = mcasp_get_reg(base + DAVINCI_MCASP_RXFMT_REG);
+	a->context.rxstat = mcasp_get_reg(base + DAVINCI_MCASP_TXSTAT_REG);
+	a->context.txstat = mcasp_get_reg(base + DAVINCI_MCASP_RXSTAT_REG);
+	a->context.rxmask = mcasp_get_reg(base + DAVINCI_MCASP_TXMASK_REG);
+	a->context.txmask = mcasp_get_reg(base + DAVINCI_MCASP_RXMASK_REG);
 	a->context.aclkxctl = mcasp_get_reg(base + DAVINCI_MCASP_ACLKXCTL_REG);
 	a->context.aclkrctl = mcasp_get_reg(base + DAVINCI_MCASP_ACLKRCTL_REG);
+	a->context.ahclkxctl = mcasp_get_reg(base + DAVINCI_MCASP_AHCLKXCTL_REG);
+	a->context.ahclkrctl = mcasp_get_reg(base + DAVINCI_MCASP_AHCLKRCTL_REG);
+	a->context.rxtdm = mcasp_get_reg(base + DAVINCI_MCASP_RXTDM_REG);
 	a->context.pdir = mcasp_get_reg(base + DAVINCI_MCASP_PDIR_REG);
+	a->context.txditctl = mcasp_get_reg(base + DAVINCI_MCASP_TXDITCTL_REG);
 
 	return 0;
 }
@@ -1303,13 +1313,25 @@ static int davinci_mcasp_resume(struct device *dev)
 	struct davinci_audio_dev *a = dev_get_drvdata(dev);
 	void __iomem *base = a->base;
 
+	mcasp_set_ctl_reg(base + DAVINCI_MCASP_GBLCTLR_REG,
+			  a->context.gblctlr);
+	mcasp_set_ctl_reg(base + DAVINCI_MCASP_GBLCTLX_REG,
+			  a->context.gblctlx);
 	mcasp_set_reg(base + DAVINCI_MCASP_TXFMCTL_REG, a->context.txfmtctl);
 	mcasp_set_reg(base + DAVINCI_MCASP_RXFMCTL_REG, a->context.rxfmtctl);
 	mcasp_set_reg(base + DAVINCI_MCASP_TXFMT_REG, a->context.txfmt);
 	mcasp_set_reg(base + DAVINCI_MCASP_RXFMT_REG, a->context.rxfmt);
+	mcasp_set_reg(base + DAVINCI_MCASP_TXSTAT_REG, a->context.txstat);
+	mcasp_set_reg(base + DAVINCI_MCASP_RXSTAT_REG, a->context.rxstat);
+	mcasp_set_reg(base + DAVINCI_MCASP_TXMASK_REG, a->context.txmask);
+	mcasp_set_reg(base + DAVINCI_MCASP_RXMASK_REG, a->context.rxmask);
 	mcasp_set_reg(base + DAVINCI_MCASP_ACLKXCTL_REG, a->context.aclkxctl);
 	mcasp_set_reg(base + DAVINCI_MCASP_ACLKRCTL_REG, a->context.aclkrctl);
+	mcasp_set_reg(base + DAVINCI_MCASP_AHCLKXCTL_REG, a->context.ahclkxctl);
+	mcasp_set_reg(base + DAVINCI_MCASP_AHCLKRCTL_REG, a->context.ahclkrctl);
+	mcasp_set_reg(base + DAVINCI_MCASP_RXTDM_REG, a->context.rxtdm);
 	mcasp_set_reg(base + DAVINCI_MCASP_PDIR_REG, a->context.pdir);
+	mcasp_set_reg(base + DAVINCI_MCASP_TXDITCTL_REG, a->context.txditctl);
 
 	return 0;
 }

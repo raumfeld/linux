@@ -46,13 +46,23 @@ struct davinci_audio_dev {
 
 #ifdef CONFIG_PM_SLEEP
 	struct {
+		u32	gblctlr;
+		u32	gblctlx;
 		u32	txfmtctl;
 		u32	rxfmtctl;
 		u32	txfmt;
 		u32	rxfmt;
+		u32	rxstat;
+		u32	txstat;
+		u32	txmask;
+		u32	rxmask;
 		u32	aclkxctl;
 		u32	aclkrctl;
+		u32	ahclkxctl;
+		u32	ahclkrctl;
+		u32	rxtdm;
 		u32	pdir;
+		u32	txditctl;
 	} context;
 #endif
 };
