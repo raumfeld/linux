@@ -26,6 +26,24 @@ specifier is required.
 dma-names: List of DMA request names. These strings correspond
 1:1 with the DMA specifiers listed in dmas. The string naming is
 to be "rx" and "tx" for RX and TX DMA requests, respectively.
+ti,quirk-swakeup-missing: SOC missing the swakeup line, will not detect
+SDIO irq while in suspend. Fallback to polling. Affected chips are
+am335x,
+
+                            ------
+                            | PRCM |
+                             ------
+                              ^ |
+                      swakeup | | fclk
+                              | v
+      ------                -------               -----
+     | card | -- CIRQ -->  | hsmmc | -- IRQ -->  | CPU |
+      ------                -------               -----
+
+In suspend the fclk is off and the module is disfunctional. Even
+register reads will fail. A small logic in the host will request fclk
+restore, when an external event is detected. Once the clock is
+restored, the host detects the event normally.
 
 Examples:
 
