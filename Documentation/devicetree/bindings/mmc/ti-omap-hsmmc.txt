@@ -20,6 +20,24 @@ ti,dual-volt: boolean, supports dual voltage cards
 ti,non-removable: non-removable slot (like eMMC)
 ti,needs-special-reset: Requires a special softreset sequence
 ti,needs-special-hs-handling: HSMMC IP needs special setting for handling High Speed
+ti,quirk-swakup-missing: SOC missing the swakeup line, will not detect
+SDIO irq while in suspend. Fallback to polling. Affected chips are
+am335x,
+
+                            ------
+                            | PRCM |
+                             ------
+                              ^ |
+                      swakeup | | fclk
+                              | v
+      ------                -------               -----
+     | card | -- CIRQ -->  | hsmmc | -- IRQ -->  | CPU |
+      ------                -------               -----
+
+In suspend the fclk is off and the module is disfunctional. Even
+register reads will fail. A small logic in the host will request fclk
+restore, when an external event is detected. Once the clock is
+restored, the host detects the event normally.
 
 Example:
 	mmc1: mmc@0x4809c000 {
