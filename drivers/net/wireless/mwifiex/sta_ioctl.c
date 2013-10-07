@@ -26,7 +26,7 @@
 #include "11n.h"
 #include "cfg80211.h"
 
-static int disconnect_on_suspend = 1;
+static int disconnect_on_suspend = 0;
 module_param(disconnect_on_suspend, int, 0644);
 
 /*
@@ -493,6 +493,8 @@ int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 	struct mwifiex_private *priv;
 	int i;
 
+	dev_err(adapter->dev, "mwifiex_enable_hs\n");
+
 	if (disconnect_on_suspend) {
 		for (i = 0; i < adapter->priv_num; i++) {
 			priv = adapter->priv[i];
@@ -502,7 +504,7 @@ int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 	}
 
 	if (adapter->hs_activated) {
-		dev_dbg(adapter->dev, "cmd: HS Already activated\n");
+		dev_err(adapter->dev, "cmd: HS Already activated\n");
 		return true;
 	}
 
@@ -510,6 +512,10 @@ int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 
 	memset(&hscfg, 0, sizeof(struct mwifiex_ds_hs_cfg));
 	hscfg.is_invoke_hostcmd = true;
+
+	hscfg.conditions = HS_CFG_COND_DEF;
+	hscfg.gpio = HS_CFG_GPIO_DEF;
+	hscfg.gap = HS_CFG_GAP_DEF;
 
 	if (mwifiex_set_hs_params(mwifiex_get_priv(adapter,
 						   MWIFIEX_BSS_ROLE_STA),
