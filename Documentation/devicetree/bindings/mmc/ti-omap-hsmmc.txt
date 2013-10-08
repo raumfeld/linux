@@ -27,8 +27,11 @@ dma-names: List of DMA request names. These strings correspond
 1:1 with the DMA specifiers listed in dmas. The string naming is
 to be "rx" and "tx" for RX and TX DMA requests, respectively.
 ti,quirk-swakeup-missing: SOC missing the swakeup line, will not detect
-SDIO irq while in suspend. Fallback to polling. Affected chips are
-am335x,
+SDIO irq while in suspend. The workaround is to reconfigure the dat1 line as a
+GPIO upon suspend. Beyond this option and the GPIO config, you also need to set
+named pinctrl states "default", "active" and "idle ", see example below.  The
+MMC driver will then then toggle between default and idle during the runtime
+Affected chips are am335x,
 
                             ------
                             | PRCM |
@@ -72,4 +75,25 @@ Examples:
 		dmas = <&edma 24
 			&edma 25>;
 		dma-names = "tx", "rx";
+	};
+
+[am335x with with gpio for sdio irq]
+
+	mmc1_cirq_pin: pinmux_cirq_pin {
+		pinctrl-single,pins = <
+			0x0f8 0x3f	/* MMC0_DAT1 as GPIO2_28 */
+		>;
+	};
+
+	mmc1: mmc@48060000 {
+		ti,non-removable;
+		bus-width = <4>;
+		vmmc-supply = <&ldo2_reg>;
+		vmmc_aux-supply = <&vmmc>;
+	        ti,quirk-swakeup-missing;
+		pinctrl-names = "default", "active", "idle";
+		pinctrl-0 = <&mmc1_pins>;
+		pinctrl-1 = <&mmc1_pins>;
+		pinctrl-2 = <&mmc1_cirq_pin>;
+		ti,cirq-gpio = <&gpio3 28 0>;
 	};
