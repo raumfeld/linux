@@ -202,6 +202,7 @@ struct omap_hsmmc_host {
 	int			suspended;
 	u32			hctl;
 	u32			capa;
+	u32			sysctl;
 	int			irq;
 	int			use_dma, dma_ch;
 	struct dma_chan		*tx_chan;
@@ -765,6 +766,8 @@ static int omap_hsmmc_context_restore(struct omap_hsmmc_host *host)
 	OMAP_HSMMC_WRITE(host->base, CAPA,
 			OMAP_HSMMC_READ(host->base, CAPA) | capa);
 
+	OMAP_HSMMC_WRITE(host->base, SYSCTL, host->sysctl);
+
 	OMAP_HSMMC_WRITE(host->base, HCTL,
 			OMAP_HSMMC_READ(host->base, HCTL) | SDBP);
 
@@ -797,6 +800,7 @@ static void omap_hsmmc_context_save(struct omap_hsmmc_host *host)
 {
 	host->hctl = OMAP_HSMMC_READ(host->base, HCTL);
 	host->capa = OMAP_HSMMC_READ(host->base, CAPA);
+	host->sysctl = OMAP_HSMMC_READ(host->base, SYSCTL);
 }
 
 #else
