@@ -2376,6 +2376,7 @@ static int omap_hsmmc_suspend(struct device *dev)
 	if (host->dbclk)
 		clk_disable_unprepare(host->dbclk);
 
+	pinctrl_pm_select_sleep_state(host->dev);
 	pm_runtime_put_sync(host->dev);
 	return 0;
 }
@@ -2389,6 +2390,7 @@ static int omap_hsmmc_resume(struct device *dev)
 		return 0;
 
 	pm_runtime_get_sync(host->dev);
+	pinctrl_pm_select_default_state(host->dev);
 
 	if (host->dbclk)
 		clk_prepare_enable(host->dbclk);
