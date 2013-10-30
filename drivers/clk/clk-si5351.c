@@ -1393,6 +1393,10 @@ static int si5351_i2c_probe(struct i2c_client *client,
 		}
 	}
 
+	/* Enable fanout of MS0 and MS4 to all output multiplexers */
+	si5351_set_bits(drvdata, SI5351_FANOUT_ENABLE,
+			SI5351_MULTISYNTH_ENABLE, SI5351_MULTISYNTH_ENABLE);
+
 	/* register xtal input clock gate */
 	memset(&init, 0, sizeof(init));
 	init.name = si5351_input_names[0];
