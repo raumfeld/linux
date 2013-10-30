@@ -2389,6 +2389,15 @@ static int omap_hsmmc_suspend(struct device *dev)
 				OMAP_HSMMC_READ(host->base, HCTL) & ~SDBP);
 	}
 
+	/*
+	 * force a polling cycle after resume.
+	 * will issue cmd52, not cmd53 straight away
+	 */
+	omap_hsmmc_enable_sdio_irq(host->mmc, false);
+
+	if (host->flags & HSMMC_SWAKEUP_QUIRK)
+		disable_irq(mmc_slot(host).sdio_irq);
+
 	if (host->dbclk)
 		clk_disable_unprepare(host->dbclk);
 
@@ -2425,6 +2434,9 @@ static int omap_hsmmc_resume(struct device *dev)
 	ret = mmc_resume_host(host->mmc);
 	if (ret == 0)
 		host->suspended = 0;
+
+	if (host->flags & HSMMC_SWAKEUP_QUIRK)
+		enable_irq(mmc_slot(host).sdio_irq);
 
 	pm_runtime_mark_last_busy(host->dev);
 	pm_runtime_put_autosuspend(host->dev);
