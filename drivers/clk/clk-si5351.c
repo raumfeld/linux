@@ -1413,6 +1413,10 @@ static int si5351_i2c_probe(struct i2c_client *client,
 				n, pdata->clkout[n].disable_state);
 			return ret;
 		}
+
+		/* hack! */
+		si5351_set_bits(drvdata, SI5351_CLK0_CTRL + n,
+				SI5351_CLK_POWERDOWN, 0);
 	}
 
 	if (!IS_ERR(drvdata->pxtal))
