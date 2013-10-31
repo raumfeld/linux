@@ -161,7 +161,6 @@ static bool adau1701_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case ADAU1701_DACSET:
-	case ADAU1701_DSPCTRL:
 		return true;
 	default:
 		return false;
