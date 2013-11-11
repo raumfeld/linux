@@ -496,7 +496,6 @@ static int snd_soc_am33xx_s800_remove(struct platform_device *pdev)
 	struct snd_soc_am33xx_s800 *priv = platform_get_drvdata(pdev);
 
 	snd_soc_am33xx_s800_shutdown_amp(&pdev->dev, priv);
-
 	snd_soc_unregister_card(&priv->card);
 
 	return 0;
@@ -510,6 +509,13 @@ static int snd_soc_am33xx_s800_suspend(struct device *dev)
 	snd_soc_am33xx_s800_shutdown_amp(dev, priv);
 
 	return snd_soc_suspend(dev);
+}
+
+static void snd_soc_am33xx_s800_shutdown(struct platform_device *pdev)
+{
+	struct snd_soc_am33xx_s800 *priv = platform_get_drvdata(pdev);
+
+	snd_soc_am33xx_s800_shutdown_amp(&pdev->dev, priv);
 }
 
 static int snd_soc_am33xx_s800_resume(struct device *dev)
@@ -541,8 +547,9 @@ static struct platform_driver snd_soc_am33xx_s800_driver = {
 		.of_match_table	= snd_soc_am33xx_s800_match,
 		.pm		= &snd_soc_am33xx_s800_pm_ops,
 	},
-	.probe	= snd_soc_am33xx_s800_probe,
-	.remove	= snd_soc_am33xx_s800_remove,
+	.probe		= snd_soc_am33xx_s800_probe,
+	.remove		= snd_soc_am33xx_s800_remove,
+	.shutdown	= snd_soc_am33xx_s800_shutdown,
 };
 
 module_platform_driver(snd_soc_am33xx_s800_driver);
