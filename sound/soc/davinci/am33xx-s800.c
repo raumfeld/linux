@@ -33,6 +33,7 @@ struct snd_soc_am33xx_s800 {
 	signed int		drift;
 	int			passive_mode_gpio;
 	int			amp_overheat_gpio;
+	int			amp_overcurrent_gpio;
 	int			amp_reset_gpio;
 	int			amp_reset_delay_ms;
 	struct snd_kcontrol	*amp_overheat_kctl;
@@ -304,6 +305,15 @@ static irqreturn_t am33xx_s800_amp_overheat_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t am33xx_s800_amp_overcurrent_irq(int irq, void *data)
+{
+	struct snd_soc_am33xx_s800 *priv = data;
+
+	dev_warn(priv->card.dev, "Amplifier signaled overcurrent/shutdown condition");
+
+	return IRQ_HANDLED;
+}
+
 static const struct of_device_id snd_soc_am33xx_s800_match[] = {
 	{ .compatible	= "sue,am33xx-generic-audio" },
 	{ }
@@ -463,6 +473,24 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 
 		if (ret < 0)
 			priv->amp_overheat_gpio = -EINVAL;
+	}
+
+	priv->amp_overcurrent_gpio = of_get_named_gpio(top_node, "sue,amp-overcurrent-gpio", 0);
+	if (gpio_is_valid(priv->amp_overcurrent_gpio)) {
+		ret = devm_gpio_request_one(dev, priv->amp_overheat_gpio,
+					    GPIOF_IN, "Amplifier Over-current");
+
+		if (ret == 0) {
+			unsigned int irq_flags = IRQF_TRIGGER_RISING |
+						 IRQF_TRIGGER_FALLING |
+						 IRQF_ONESHOT;
+
+			ret = request_threaded_irq(gpio_to_irq(priv->amp_overcurrent_gpio),
+						   NULL, am33xx_s800_amp_overcurrent_irq,
+						   irq_flags, "Amplifier Overcurrent", priv);
+			if (ret < 0)
+				dev_warn(dev, "Unable to request amp overcurrent IRQ: %d\n", ret);
+		}
 	}
 
 	priv->amp_reset_gpio = of_get_named_gpio(top_node, "sue,amp-reset-gpio", 0);
