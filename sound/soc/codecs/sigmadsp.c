@@ -239,7 +239,7 @@ static int sigmadsp_fw_load_v2(struct snd_soc_codec *codec,
 	while (pos + sizeof(*chunk) < fw->size) {
 		chunk = (struct sigma_fw_chunk *)(fw->data + pos);
 
-		if (chunk->length + pos >= fw->size || chunk->length == 0)
+		if (chunk->length + pos > fw->size || chunk->length == 0)
 			return -EINVAL;
 
 		switch (chunk->tag) {
