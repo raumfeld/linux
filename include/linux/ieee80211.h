@@ -2280,6 +2280,9 @@ enum ieee80211_sa_query_action {
 #define WLAN_OUI_TYPE_MICROSOFT_WMM	2
 #define WLAN_OUI_TYPE_MICROSOFT_WPS	4
 
+#define WLAN_OUI_APPLE			0x00A040
+#define WLAN_OUI_TYPE_APPLE_WAC	0
+
 /*
  * WMM/802.11e Tspec Element
  */

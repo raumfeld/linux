@@ -270,6 +270,9 @@ static int mwifiex_set_mgmt_beacon_data_ies(struct mwifiex_private *priv,
 		mwifiex_update_vs_ie(data->beacon_ies, data->beacon_ies_len,
 				     &beacon_ie, MGMT_MASK_BEACON,
 				     WLAN_OUI_WFA, WLAN_OUI_TYPE_WFA_P2P);
+		mwifiex_update_vs_ie(data->beacon_ies, data->beacon_ies_len,
+				     &beacon_ie, MGMT_MASK_BEACON,
+				     WLAN_OUI_APPLE, WLAN_OUI_TYPE_APPLE_WAC);
 	}
 
 	if (data->proberesp_ies && data->proberesp_ies_len) {
@@ -281,6 +284,10 @@ static int mwifiex_set_mgmt_beacon_data_ies(struct mwifiex_private *priv,
 				     data->proberesp_ies_len, &pr_ie,
 				     MGMT_MASK_PROBE_RESP,
 				     WLAN_OUI_WFA, WLAN_OUI_TYPE_WFA_P2P);
+		mwifiex_update_vs_ie(data->proberesp_ies,
+				     data->proberesp_ies_len, &pr_ie,
+				     MGMT_MASK_PROBE_RESP, WLAN_OUI_APPLE,
+				     WLAN_OUI_TYPE_APPLE_WAC);
 	}
 
 	if (data->assocresp_ies && data->assocresp_ies_len) {
@@ -295,6 +302,12 @@ static int mwifiex_set_mgmt_beacon_data_ies(struct mwifiex_private *priv,
 				     MGMT_MASK_ASSOC_RESP |
 				     MGMT_MASK_REASSOC_RESP, WLAN_OUI_WFA,
 				     WLAN_OUI_TYPE_WFA_P2P);
+		mwifiex_update_vs_ie(data->assocresp_ies,
+				     data->assocresp_ies_len, &ar_ie,
+				     MGMT_MASK_ASSOC_RESP |
+				     MGMT_MASK_REASSOC_RESP,
+				     WLAN_OUI_APPLE,
+				     WLAN_OUI_TYPE_APPLE_WAC);
 	}
 
 	if (beacon_ie || pr_ie || ar_ie) {
