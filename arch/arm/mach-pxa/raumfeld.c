@@ -317,6 +317,11 @@ static struct platform_device smc91x_device = {
 	}
 };
 
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+};
+
 /**
  * NAND
  */
@@ -550,6 +555,10 @@ static struct platform_device raumfeld_pwm_backlight_device = {
 	}
 };
 
+static struct regulator_consumer_supply pwm_dummy_supplies[] = {
+	REGULATOR_SUPPLY("power", "pwm-backlight.0"),
+};
+
 /* LT3593 controlled backlight */
 static struct gpio_led raumfeld_lt3593_led = {
 	.name		= "backlight",
@@ -619,6 +628,8 @@ static void __init raumfeld_lcd_init(void)
 	} else {
 		mfp_cfg_t raumfeld_pwm_pin_config = GPIO17_PWM0_OUT;
 		pxa3xx_mfp_config(&raumfeld_pwm_pin_config, 1);
+		regulator_register_fixed(-1, pwm_dummy_supplies,
+					 ARRAY_SIZE(pwm_dummy_supplies));
 		platform_device_register(&raumfeld_pwm_backlight_device);
 	}
 
@@ -661,7 +672,7 @@ static struct lis3lv02d_platform_data lis3_pdata = {
 
 #define SPI_AK4104	\
 {			\
-	.modalias	= "ak4104-codec",	\
+	.modalias	= "ak4104",		\
 	.max_speed_hz	= 10000,		\
 	.bus_num	= 0,			\
 	.chip_select	= 0,			\
@@ -844,67 +855,74 @@ static void __init raumfeld_power_init(void)
 
 /* Fixed regulator for AUDIO_VA, 0-0048 maps to the cs4270 codec device */
 
-static struct regulator_consumer_supply audio_va_consumer_supply =
+static struct regulator_consumer_supply vcc5v0_consumer_supply =
 	REGULATOR_SUPPLY("va", "0-0048");
 
-struct regulator_init_data audio_va_initdata = {
-	.consumer_supplies = &audio_va_consumer_supply,
+struct regulator_init_data vcc5v0_initdata = {
+	.consumer_supplies = &vcc5v0_consumer_supply,
 	.num_consumer_supplies = 1,
 	.constraints = {
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 	},
 };
 
-static struct fixed_voltage_config cs4270_va_config = {
+static struct fixed_voltage_config vcc5v0_config = {
 	.supply_name		= "audio_va",
 	.microvolts		= 5000000,
 	.gpio			= GPIO_AUDIO_VA_ENABLE,
 	.enable_high		= 1,
 	.enabled_at_boot	= 0,
-	.init_data		= &audio_va_initdata,
+	.init_data		= &vcc5v0_initdata,
 };
 
-static struct platform_device cs4270_va_device = {
+static struct platform_device vcc5v0_device = {
 	.name	= "reg-fixed-voltage",
 	.id	= 0,
 	.dev	= {
-		.platform_data = &cs4270_va_config,
+		.platform_data = &vcc5v0_config,
 	},
 };
 
 /* Dummy supplies for Codec's VD/VLC */
 
-static struct regulator_consumer_supply cs4270_dummy_supplies[] = {
+static struct regulator_consumer_supply vcc3v3_dummy_supplies[] = {
 	REGULATOR_SUPPLY("vd", "0-0048"),
 	REGULATOR_SUPPLY("vlc", "0-0048"),
+	REGULATOR_SUPPLY("vdd", "spi0.0"),
 };
 
-struct regulator_init_data cs4270_dummy_initdata = {
-	.consumer_supplies = cs4270_dummy_supplies,
-	.num_consumer_supplies = ARRAY_SIZE(cs4270_dummy_supplies),
+struct regulator_init_data vcc3v3_dummy_initdata = {
+	.consumer_supplies = vcc3v3_dummy_supplies,
+	.num_consumer_supplies = ARRAY_SIZE(vcc3v3_dummy_supplies),
 	.constraints = {
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 	},
 };
 
-static struct fixed_voltage_config cs4270_dummy_config = {
-	.supply_name		= "cs4270_vd",
+static struct fixed_voltage_config vcc3v3_config = {
+	.supply_name		= "vcc3v3_vd",
 	.microvolts		= 3300000,
 	.gpio			= -1,
-	.init_data		= &cs4270_dummy_initdata,
+	.init_data		= &vcc3v3_dummy_initdata,
 };
 
-static struct platform_device cs4270_supply_dummy_device = {
+static struct platform_device vcc3v3_device = {
 	.name	= "reg-fixed-voltage",
 	.id	= 1,
 	.dev	= {
-		.platform_data = &cs4270_dummy_config,
+		.platform_data = &vcc3v3_config,
 	},
 };
 
-static struct platform_device *cs4270_regulator_devices[] = {
-	&cs4270_va_device,
-	&cs4270_supply_dummy_device,
+static struct platform_device raumfeld_soc_device = {
+	.name	= "snd-soc-pxa3xx-raumfeld",
+	.id	= -1,
+};
+
+static struct platform_device *raumfeld_common_audio_devices[] = {
+	&vcc5v0_device,
+	&vcc3v3_device,
+	&raumfeld_soc_device,
 };
 
 /* Fixed regulator for sta32x Vdda supply
@@ -1066,8 +1084,8 @@ static void __init raumfeld_audio_init(void)
 
 	if ((system_rev & 0xff00) == 0x0400)
 		platform_add_devices(ARRAY_AND_SIZE(sta32x_regulator_devices));
-	else
-		platform_add_devices(ARRAY_AND_SIZE(cs4270_regulator_devices));
+
+	platform_add_devices(ARRAY_AND_SIZE(raumfeld_common_audio_devices));
 }
 
 static void __init raumfeld_common_init(void)
@@ -1146,6 +1164,8 @@ static void __init raumfeld_connector_init(void)
 	else
 		i2c_register_board_info(0, &raumfeld_connector_i2c_board_info, 1);
 
+	regulator_register_fixed(2, dummy_supplies, ARRAY_SIZE(dummy_supplies));
+
 	platform_device_register(&smc91x_device);
 
 	raumfeld_audio_init();
@@ -1161,6 +1181,8 @@ static void __init raumfeld_speaker_init(void)
 		i2c_register_board_info(0, &raumfeld_ddx_i2c_board_info, 1);
 	else
 		i2c_register_board_info(0, &raumfeld_connector_i2c_board_info, 1);
+
+	regulator_register_fixed(2, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
 	platform_device_register(&smc91x_device);
 	platform_device_register(&rotary_encoder_device);
