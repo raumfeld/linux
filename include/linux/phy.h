@@ -529,6 +529,9 @@ struct phy_driver {
 	/* See set_wol, but for checking whether Wake on LAN is enabled. */
 	void (*get_wol)(struct phy_device *dev, struct ethtool_wolinfo *wol);
 
+	/* Called when the PHY core adjusts the link of a PHY device */
+	void (*adjust_state)(struct phy_device *dev);
+
 	struct device_driver driver;
 };
 #define to_phy_driver(d) container_of(d, struct phy_driver, driver)

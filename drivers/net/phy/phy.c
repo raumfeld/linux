@@ -720,6 +720,9 @@ void phy_state_machine(struct work_struct *work)
 
 	mutex_lock(&phydev->lock);
 
+	if (phydev->drv->adjust_state)
+		phydev->drv->adjust_state(phydev);
+
 	switch (phydev->state) {
 	case PHY_DOWN:
 	case PHY_STARTING:
