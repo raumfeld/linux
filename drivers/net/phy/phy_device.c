@@ -1067,7 +1067,7 @@ int genphy_soft_reset(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(genphy_soft_reset);
 
-static int genphy_config_init(struct phy_device *phydev)
+int genphy_config_init(struct phy_device *phydev)
 {
 	int val;
 	u32 features;
@@ -1112,6 +1112,7 @@ static int genphy_config_init(struct phy_device *phydev)
 
 	return 0;
 }
+EXPORT_SYMBOL(genphy_config_init);
 
 static int gen10g_soft_reset(struct phy_device *phydev)
 {
