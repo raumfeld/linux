@@ -131,6 +131,9 @@
 			compatible = "mrvl,pxa-mmc";
 			reg = <0x41100000 0x1000>;
 			interrupts = <23>;
+			dmas = <&dma 21
+				&dma 22>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
