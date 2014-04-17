@@ -137,6 +137,36 @@
 			status = "disabled";
 		};
 
+		ssp0: ssp@41000000 {
+			compatible = "mrvl,pxa3xx-ssp";
+			reg = <0x41000000 0x40>;
+			interrupts = <24>;
+			clock-names = "pxa27x-ssp.0";
+			dmas = <&dma 13
+				&dma 14>;
+			dma-names = "rx", "tx";
+		};
+
+		ssp1: ssp@41700000 {
+			compatible = "mrvl,pxa3xx-ssp";
+			reg = <0x41700000 0x40>;
+			interrupts = <16>;
+			clock-names = "pxa27x-ssp.1";
+			dmas = <&dma 15
+				&dma 16>;
+			dma-names = "rx", "tx";
+		};
+
+		ssp2: ssp@41900000 {
+			compatibl3 = "mrvl,pxa3xx-ssp";
+			reg = <0x41900000 0x40>;
+			interrupts = <0>;
+			clock-names = "pxa27x-ssp.2";
+			dmas = <&dma 66
+				&dma 67>;
+			dma-names = "rx", "tx";
+		};
+
 		rtc@40900000 {
 			compatible = "marvell,pxa-rtc";
 			reg = <0x40900000 0x3c>;
