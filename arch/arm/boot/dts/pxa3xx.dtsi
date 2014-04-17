@@ -20,7 +20,10 @@
 			reg = <0x43100000 90>;
 			interrupts = <45>;
 			#address-cells = <1>;
-			#size-cells = <1>;	
+			#size-cells = <1>;
+			dmas = <&dma 97
+				&dma 99>;
+			dma-names = "data", "cmd";
 			status = "disabled";
 		};
 
