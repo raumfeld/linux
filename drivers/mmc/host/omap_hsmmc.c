@@ -1849,14 +1849,28 @@ static int omap_hsmmc_regs_show(struct seq_file *s, void *data)
 {
 	struct mmc_host *mmc = s->private;
 	struct omap_hsmmc_host *host = mmc_priv(mmc);
+	const char *cirq_state;
+	bool suspended;
 
-	seq_printf(s, "mmc%d:\n ctx_loss:\t%d\n\nregs:\n",
-			mmc->index, host->context_loss);
+	seq_printf(s, "mmc%d:\n", mmc->index);
+	if (mmc->caps & MMC_CAP_SDIO_IRQ)
+		cirq_state = (host->flags & HSMMC_SDIO_IRQ_ENABLED) ?
+			"enabled" : "disabled";
+	else
+		cirq_state = "polling";
+	seq_printf(s, "sdio irq\t%s\n", cirq_state);
+
+	suspended = host->dev->power.runtime_status != RPM_ACTIVE;
+	seq_printf(s, "runtime state\t%s\n", (suspended ?  "idle" : "active"));
+
+	seq_printf(s, "ctx_loss:\t%d\n", host->context_loss);
 
 	pm_runtime_get_sync(host->dev);
-
+	seq_puts(s, "\nregs:\n");
 	seq_printf(s, "CON:\t\t0x%08x\n",
 			OMAP_HSMMC_READ(host->base, CON));
+	seq_printf(s, "PSTATE:\t\t0x%08x\n",
+		   OMAP_HSMMC_READ(host->base, PSTATE));
 	seq_printf(s, "HCTL:\t\t0x%08x\n",
 			OMAP_HSMMC_READ(host->base, HCTL));
 	seq_printf(s, "SYSCTL:\t\t0x%08x\n",
