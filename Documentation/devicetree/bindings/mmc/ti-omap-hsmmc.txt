@@ -56,3 +56,54 @@ Examples:
 			&edma 25>;
 		dma-names = "tx", "rx";
 	};
+
+[workaround for missing swakeup on am33xx]
+
+This SOC is missing the swakeup line, it will not detect SDIO irq
+while in suspend.
+
+                             ------
+                             | PRCM |
+                              ------
+                               ^ |
+                       swakeup | | fclk
+                               | v
+       ------                -------               -----
+      | card | -- CIRQ -->  | hsmmc | -- IRQ -->  | CPU |
+       ------                -------               -----
+
+In suspend the fclk is off and the module is disfunctional. Even
+register reads will fail. A small logic in the host will request
+fclk restore, when an external event is detected. Once the clock
+is restored, the host detects the event normally. Since am33xx
+doesn't have this line it never wakes from suspend.
+
+The workaround is to reconfigure the dat1 line as a GPIO upon
+suspend. To make this work, we need to set 1) the named pinctrl
+states "default", "idle" and "gpio_dat1", 2) the gpio detecting
+sdio irq in suspend and 3) the compatibe section, see example below.
+The MMC driver will then toggle between gpio_dat1 and default during
+the runtime. If configuration is incomplete, a warning message is
+emitted "falling back to polling". Mind not every application
+needs SDIO irq, e.g. MMC cards Affected chips are am335x,
+probably others
+
+
+	mmc1: mmc@48060100 {
+		compatible = "ti,am33xx-hsmmc";
+		...
+		interrupts-extended = <&intc 64 &gpio2 28 0>;
+		...
+		pinctrl-names = "default", "idle", "sleep", "gpio_dat1"
+		pinctrl-0 = <&mmc1_pins>;
+		pinctrl-1 = <&mmc1_idle>;
+		pinctrl-2 = <&mmc1_sleep>;
+		pinctrl-3 = <&mmc1_cirq_pin>;
+		...
+	};
+
+	mmc1_cirq_pin: pinmux_cirq_pin {
+		pinctrl-single,pins = <
+		        0x0f8 0x3f      /* GPIO2_28 */
+		>;
+	};

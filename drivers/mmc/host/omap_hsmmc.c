@@ -243,7 +243,10 @@ struct omap_hsmmc_host {
 #define AUTO_CMD23		(1 << 0)        /* Auto CMD23 support */
 #define HSMMC_SDIO_IRQ_ENABLED	(1 << 1)        /* SDIO irq enabled */
 #define HSMMC_WAKE_IRQ_ENABLED	(1 << 2)
+#define HSMMC_SWAKEUP_QUIRK	(1 << 3)
 	struct omap_hsmmc_next	next_data;
+	struct pinctrl		*pinctrl;
+	struct pinctrl_state	*gpio_pinmux;
 	struct	omap_mmc_platform_data	*pdata;
 };
 
@@ -1774,8 +1777,28 @@ static int omap_hsmmc_configure_wake_irq(struct omap_hsmmc_host *host)
 	 * and need to remux SDIO DAT1 to GPIO for wake-up from idle.
 	 */
 	if (host->pdata->controller_flags & OMAP_HSMMC_SWAKEUP_MISSING) {
-		ret = -ENODEV;
-		goto err;
+		if (IS_ERR(host->dev->pins->default_state)) {
+			dev_info(host->dev, "missing default pinctrl state\n");
+			ret = -EINVAL;
+			goto err;
+		}
+
+		host->pinctrl = devm_pinctrl_get(host->dev);
+		if (IS_ERR(host->pinctrl)) {
+			dev_warn(host->dev, "no pinctrl handle\n");
+			ret = -ENODEV;
+			goto err;
+		}
+
+		host->gpio_pinmux = pinctrl_lookup_state(host->pinctrl,
+							 "gpio_dat1");
+		if (IS_ERR(host->gpio_pinmux)) {
+			dev_info(host->dev, "missing \"gpio_dat1\" pinctrl state\n");
+			ret = -ENODEV;
+			goto err;
+		}
+
+		host->flags |= HSMMC_SWAKEUP_QUIRK;
 	}
 
 	devres_remove_group(host->dev, NULL);
@@ -2468,7 +2491,10 @@ static int omap_hsmmc_runtime_suspend(struct device *dev)
 			goto abort;
 		}
 
-		pinctrl_pm_select_idle_state(dev);
+		if (host->flags & HSMMC_SWAKEUP_QUIRK)
+			pinctrl_select_state(host->pinctrl, host->gpio_pinmux);
+		else
+			pinctrl_pm_select_idle_state(dev);
 
 		WARN_ON(host->flags & HSMMC_WAKE_IRQ_ENABLED);
 		enable_irq(host->wake_irq);
