@@ -38,6 +38,7 @@
 #include <linux/davinci_emac.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_mdio.h>
 #include <linux/pinctrl/consumer.h>
 
 /*
@@ -389,7 +390,7 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	}
 
 	/* register the mii bus */
-	ret = mdiobus_register(data->bus);
+	ret = of_mdiobus_register(data->bus, dev->of_node);
 	if (ret)
 		goto bail_out;
 
