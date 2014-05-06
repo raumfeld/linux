@@ -16,9 +16,13 @@
 #include <linux/string.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 
 #define AT803X_INTR_ENABLE			0x12
 #define AT803X_INTR_STATUS			0x13
+#define AT803X_SMART_SPEED			0x14
+#define AT803X_LED_CONTROL			0x18
 #define AT803X_WOL_ENABLE			0x01
 #define AT803X_DEVICE_ADDR			0x03
 #define AT803X_LOC_MAC_ADDR_0_15_OFFSET		0x804C
@@ -38,6 +42,44 @@
 MODULE_DESCRIPTION("Atheros 803x PHY driver");
 MODULE_AUTHOR("Matus Ujhelyi");
 MODULE_LICENSE("GPL");
+
+struct at803x_priv {
+	bool phy_reset:1;
+	struct gpio_desc *gpiod_reset;
+};
+
+struct at803x_context {
+	u16 bmcr;
+	u16 advertise;
+	u16 control1000;
+	u16 int_enable;
+	u16 smart_speed;
+	u16 led_control;
+};
+
+/* save relevant PHY registers to private copy */
+static void at803x_context_save(struct phy_device *phydev,
+				struct at803x_context *context)
+{
+	context->bmcr = phy_read(phydev, MII_BMCR);
+	context->advertise = phy_read(phydev, MII_ADVERTISE);
+	context->control1000 = phy_read(phydev, MII_CTRL1000);
+	context->int_enable = phy_read(phydev, AT803X_INTR_ENABLE);
+	context->smart_speed = phy_read(phydev, AT803X_SMART_SPEED);
+	context->led_control = phy_read(phydev, AT803X_LED_CONTROL);
+}
+
+/* restore relevant PHY registers from private copy */
+static void at803x_context_restore(struct phy_device *phydev,
+				   const struct at803x_context *context)
+{
+	phy_write(phydev, MII_BMCR, context->bmcr);
+	phy_write(phydev, MII_ADVERTISE, context->advertise);
+	phy_write(phydev, MII_CTRL1000, context->control1000);
+	phy_write(phydev, AT803X_INTR_ENABLE, context->int_enable);
+	phy_write(phydev, AT803X_SMART_SPEED, context->smart_speed);
+	phy_write(phydev, AT803X_LED_CONTROL, context->led_control);
+}
 
 static int at803x_set_wol(struct phy_device *phydev,
 			  struct ethtool_wolinfo *wol)
@@ -142,8 +184,20 @@ static int at803x_resume(struct phy_device *phydev)
 	return 0;
 }
 
+static int at803x_probe(struct phy_device *phydev)
+{
+	phydev->priv = devm_kzalloc(&phydev->dev, sizeof(struct at803x_priv),
+				    GFP_KERNEL);
+	if (!phydev->priv)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int at803x_config_init(struct phy_device *phydev)
 {
+	struct at803x_priv *priv = phydev->priv;
+	struct device *dev = &phydev->dev;
 	int ret;
 
 	ret = genphy_config_init(phydev);
@@ -159,6 +213,16 @@ static int at803x_config_init(struct phy_device *phydev)
 				AT803X_DEBUG_RGMII_TX_CLK_DLY);
 		if (ret)
 			return ret;
+	}
+
+	if (!priv->gpiod_reset) {
+		struct gpio_desc *gpiod;
+
+		gpiod = devm_gpiod_get(dev, "reset");
+		if (!IS_ERR(gpiod)) {
+			gpiod_direction_output(gpiod, 1);
+			priv->gpiod_reset = gpiod;
+		}
 	}
 
 	return 0;
@@ -189,12 +253,39 @@ static int at803x_config_intr(struct phy_device *phydev)
 	return err;
 }
 
+static void at803x_adjust_state(struct phy_device *phydev)
+{
+	struct at803x_priv *priv = phydev->priv;
+
+	if (phydev->state == PHY_NOLINK) {
+		if (priv->gpiod_reset && !priv->phy_reset) {
+			struct at803x_context context;
+
+			at803x_context_save(phydev, &context);
+
+			gpiod_set_value(priv->gpiod_reset, 0);
+			msleep(1);
+			gpiod_set_value(priv->gpiod_reset, 1);
+			msleep(1);
+
+			at803x_context_restore(phydev, &context);
+
+			dev_dbg(&phydev->dev, "%s(): phy was reset\n",
+				__func__);
+			priv->phy_reset = true;
+		}
+	} else {
+		priv->phy_reset = false;
+	}
+}
+
 static struct phy_driver at803x_driver[] = {
 {
 	/* ATHEROS 8035 */
 	.phy_id		= 0x004dd072,
 	.name		= "Atheros 8035 ethernet",
 	.phy_id_mask	= 0xffffffef,
+	.probe		= at803x_probe,
 	.config_init	= at803x_config_init,
 	.set_wol	= at803x_set_wol,
 	.get_wol	= at803x_get_wol,
@@ -204,6 +295,7 @@ static struct phy_driver at803x_driver[] = {
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
+	.adjust_state	= at803x_adjust_state,
 	.driver		= {
 		.owner = THIS_MODULE,
 	},
@@ -212,6 +304,7 @@ static struct phy_driver at803x_driver[] = {
 	.phy_id		= 0x004dd076,
 	.name		= "Atheros 8030 ethernet",
 	.phy_id_mask	= 0xffffffef,
+	.probe		= at803x_probe,
 	.config_init	= at803x_config_init,
 	.set_wol	= at803x_set_wol,
 	.get_wol	= at803x_get_wol,
@@ -221,6 +314,7 @@ static struct phy_driver at803x_driver[] = {
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
+	.adjust_state	= at803x_adjust_state,
 	.driver		= {
 		.owner = THIS_MODULE,
 	},
@@ -229,6 +323,7 @@ static struct phy_driver at803x_driver[] = {
 	.phy_id		= 0x004dd074,
 	.name		= "Atheros 8031 ethernet",
 	.phy_id_mask	= 0xffffffef,
+	.probe		= at803x_probe,
 	.config_init	= at803x_config_init,
 	.set_wol	= at803x_set_wol,
 	.get_wol	= at803x_get_wol,
@@ -238,6 +333,7 @@ static struct phy_driver at803x_driver[] = {
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
+	.adjust_state	= at803x_adjust_state,
 	.ack_interrupt  = &at803x_ack_interrupt,
 	.config_intr    = &at803x_config_intr,
 	.driver		= {
