@@ -121,7 +121,10 @@ static void apply_clk_hack(struct device *dev)
 #define BCE			(1 << 1)
 #define FOUR_BIT		(1 << 1)
 #define HSPE			(1 << 2)
+#define IWE			(1 << 24)
 #define DDR			(1 << 19)
+#define CLKEXTFREE		(1 << 16)
+#define CTPL			(1 << 11)
 #define DW8			(1 << 5)
 #define OD			0x1
 #define STAT_CLEAR		0xFFFFFFFF
@@ -713,6 +716,9 @@ static int omap_hsmmc_context_restore(struct omap_hsmmc_host *host)
 		hctl = SDVS18;
 		capa = VS18;
 	}
+
+	if (host->mmc->caps & MMC_CAP_SDIO_IRQ)
+		hctl |= IWE;
 
 	OMAP_HSMMC_WRITE(host->base, HCTL,
 			OMAP_HSMMC_READ(host->base, HCTL) | hctl);
@@ -1711,19 +1717,23 @@ static void omap_hsmmc_init_card(struct mmc_host *mmc, struct mmc_card *card)
 static void omap_hsmmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 {
 	struct omap_hsmmc_host *host = mmc_priv(mmc);
-	u32 irq_mask;
+	u32 irq_mask, con;
 	unsigned long flags;
 
 	spin_lock_irqsave(&host->irq_lock, flags);
 
+	con = OMAP_HSMMC_READ(host->base, CON);
 	irq_mask = OMAP_HSMMC_READ(host->base, ISE);
 	if (enable) {
 		host->flags |= HSMMC_SDIO_IRQ_ENABLED;
 		irq_mask |= CIRQ_EN;
+		con |= CTPL | CLKEXTFREE;
 	} else {
 		host->flags &= ~HSMMC_SDIO_IRQ_ENABLED;
 		irq_mask &= ~CIRQ_EN;
+		con &= ~(CTPL | CLKEXTFREE);
 	}
+	OMAP_HSMMC_WRITE(host->base, CON, con);
 	OMAP_HSMMC_WRITE(host->base, IE, irq_mask);
 
 	/*
@@ -1773,6 +1783,8 @@ static int omap_hsmmc_configure_wake_irq(struct omap_hsmmc_host *host)
 		goto err;
 	}
 
+	OMAP_HSMMC_WRITE(host->base, HCTL,
+			 OMAP_HSMMC_READ(host->base, HCTL) | IWE);
 	return 0;
 
 err:
