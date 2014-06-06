@@ -2268,6 +2268,11 @@ static int omap_hsmmc_suspend(struct device *dev)
 	if ((host->mmc->caps & MMC_CAP_SDIO_IRQ) &&
 	    !(host->mmc->pm_flags & MMC_PM_WAKE_SDIO_IRQ))
 		disable_irq(host->wake_irq);
+	/*
+	 * force a polling cycle after resume.
+	 * will issue cmd52 first, not cmd53 straight away
+	 */
+	omap_hsmmc_enable_sdio_irq(host->mmc, false);
 
 	if (host->dbclk)
 		clk_disable_unprepare(host->dbclk);
