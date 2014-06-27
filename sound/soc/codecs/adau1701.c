@@ -22,8 +22,13 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
+#include <asm/unaligned.h>
+
 #include "sigmadsp.h"
 #include "adau1701.h"
+
+#define ADAU1701_SAFELOAD_DATA(i) (0x0810 + (i))
+#define ADAU1701_SAFELOAD_ADDR(i) (0x0815 + (i))
 
 #define ADAU1701_DSPCTRL	0x081c
 #define ADAU1701_SEROCTL	0x081e
@@ -42,6 +47,7 @@
 #define ADAU1701_DSPCTRL_CR		(1 << 2)
 #define ADAU1701_DSPCTRL_DAM		(1 << 3)
 #define ADAU1701_DSPCTRL_ADM		(1 << 4)
+#define ADAU1701_DSPCTRL_IST		(1 << 5)
 #define ADAU1701_DSPCTRL_SR_48		0x00
 #define ADAU1701_DSPCTRL_SR_96		0x01
 #define ADAU1701_DSPCTRL_SR_192		0x02
@@ -102,6 +108,7 @@ struct adau1701 {
 	unsigned int pll_clkdiv;
 	unsigned int sysclk;
 	struct regmap *regmap;
+	struct i2c_client *client;
 	u8 pin_config[12];
 
 	struct sigmadsp *sigmadsp;
@@ -161,6 +168,7 @@ static bool adau1701_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case ADAU1701_DACSET:
+	case ADAU1701_DSPCTRL:
 		return true;
 	default:
 		return false;
@@ -729,6 +737,7 @@ static int adau1701_i2c_probe(struct i2c_client *client,
 	if (!adau1701)
 		return -ENOMEM;
 
+	adau1701->client = client;
 	adau1701->regmap = devm_regmap_init(dev, NULL, client,
 					    &adau1701_regmap);
 	if (IS_ERR(adau1701->regmap))
