@@ -255,8 +255,7 @@ static const struct snd_kcontrol_new adau1761_input_mux_control =
 static int adau1761_dejitter_fixup(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct adau *adau = snd_soc_codec_get_drvdata(codec);
+	struct adau *adau = snd_soc_codec_get_drvdata(w->codec);
 
 	/* After any power changes have been made the dejitter circuit
 	 * has to be reinitialized. */
@@ -700,6 +699,13 @@ static int adau1761_codec_probe(struct snd_soc_codec *codec)
 			ARRAY_SIZE(adau1761_dapm_routes));
 		if (ret)
 			return ret;
+
+		if (adau17x1_has_dsp(adau)) {
+			ret = sigmadsp_firmware_load(&adau->sigmadsp, codec,
+				ADAU1761_FIRMWARE);
+			if (ret)
+				dev_warn(codec->dev, "Failed to firmware\n");
+		}
 	}
 
 	ret = adau17x1_add_routes(codec);
@@ -768,20 +774,16 @@ int adau1761_probe(struct device *dev, struct regmap *regmap,
 	enum adau17x1_type type, void (*switch_mode)(struct device *dev))
 {
 	struct snd_soc_dai_driver *dai_drv;
-	const char *firmware_name;
 	int ret;
 
-	if (type == ADAU1361) {
-		dai_drv = &adau1361_dai_driver;
-		firmware_name = NULL;
-	} else {
-		dai_drv = &adau1761_dai_driver;
-		firmware_name = ADAU1761_FIRMWARE;
-	}
-
-	ret = adau17x1_probe(dev, regmap, type, switch_mode, firmware_name);
+	ret = adau17x1_probe(dev, regmap, type, switch_mode);
 	if (ret)
 		return ret;
+
+	if (type == ADAU1361)
+		dai_drv = &adau1361_dai_driver;
+	else
+		dai_drv = &adau1761_dai_driver;
 
 	return snd_soc_register_codec(dev, &adau1761_codec_driver, dai_drv, 1);
 }
@@ -795,7 +797,6 @@ const struct regmap_config adau1761_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(adau1761_reg_defaults),
 	.readable_reg = adau1761_readable_register,
 	.volatile_reg = adau17x1_volatile_register,
-	.precious_reg = adau17x1_precious_register,
 	.cache_type = REGCACHE_RBTREE,
 };
 EXPORT_SYMBOL_GPL(adau1761_regmap_config);
