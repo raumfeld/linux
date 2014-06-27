@@ -61,8 +61,7 @@ static const struct snd_kcontrol_new adau17x1_controls[] = {
 static int adau17x1_pll_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct adau *adau = snd_soc_codec_get_drvdata(codec);
+	struct adau *adau = snd_soc_codec_get_drvdata(w->codec);
 	int ret;
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
@@ -358,7 +357,7 @@ static int adau17x1_hw_params(struct snd_pcm_substream *substream,
 		regmap_write(adau->regmap, ADAU17X1_DSP_SAMPLING_RATE, dsp_div);
 	}
 
-	if (adau->sigmadsp) {
+	if (adau17x1_has_dsp(adau)) {
 		ret = adau17x1_setup_firmware(adau, params_rate(params));
 		if (ret < 0)
 			return ret;
@@ -674,8 +673,8 @@ static int adau17x1_startup(struct snd_pcm_substream *substream,
 {
 	struct adau *adau = snd_soc_codec_get_drvdata(dai->codec);
 
-	if (adau->sigmadsp)
-		return sigmadsp_restrict_params(adau->sigmadsp, substream);
+	if (adau17x1_has_dsp(adau))
+	    return sigmadsp_restrict_params(&adau->sigmadsp, substream);
 
 	return 0;
 }
@@ -707,22 +706,8 @@ int adau17x1_set_micbias_voltage(struct snd_soc_codec *codec,
 }
 EXPORT_SYMBOL_GPL(adau17x1_set_micbias_voltage);
 
-bool adau17x1_precious_register(struct device *dev, unsigned int reg)
-{
-	/* SigmaDSP parameter memory */
-	if (reg < 0x400)
-		return true;
-
-	return false;
-}
-EXPORT_SYMBOL_GPL(adau17x1_precious_register);
-
 bool adau17x1_readable_register(struct device *dev, unsigned int reg)
 {
-	/* SigmaDSP parameter memory */
-	if (reg < 0x400)
-		return true;
-
 	switch (reg) {
 	case ADAU17X1_CLOCK_CONTROL:
 	case ADAU17X1_PLL_CONTROL:
@@ -791,7 +776,7 @@ int adau17x1_setup_firmware(struct adau *adau, unsigned int rate)
 	regmap_write(adau->regmap, ADAU17X1_DSP_ENABLE, 1);
 	regmap_write(adau->regmap, ADAU17X1_DSP_SAMPLING_RATE, 0xf);
 
-	ret = sigmadsp_setup(adau->sigmadsp, rate);
+	ret = sigmadsp_setup(&adau->sigmadsp, rate);
 	if (ret) {
 		regmap_write(adau->regmap, ADAU17X1_DSP_ENABLE, 0);
 		return ret;
@@ -820,21 +805,8 @@ int adau17x1_add_widgets(struct snd_soc_codec *codec)
 		ret = snd_soc_dapm_new_controls(&codec->dapm,
 			adau17x1_dsp_dapm_widgets,
 			ARRAY_SIZE(adau17x1_dsp_dapm_widgets));
-		if (ret)
-			return ret;
-
-		if (!adau->sigmadsp)
-			return 0;
-
-		ret = sigmadsp_attach(adau->sigmadsp, &codec->component);
-		if (ret) {
-			dev_err(codec->dev, "Failed to attach firmware: %d\n",
-				ret);
-			return ret;
-		}
 	}
-
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(adau17x1_add_widgets);
 
@@ -875,8 +847,7 @@ int adau17x1_resume(struct snd_soc_codec *codec)
 EXPORT_SYMBOL_GPL(adau17x1_resume);
 
 int adau17x1_probe(struct device *dev, struct regmap *regmap,
-	enum adau17x1_type type, void (*switch_mode)(struct device *dev),
-	const char *firmware_name)
+	enum adau17x1_type type, void (*switch_mode)(struct device *dev))
 {
 	struct adau *adau;
 
@@ -893,15 +864,7 @@ int adau17x1_probe(struct device *dev, struct regmap *regmap,
 
 	dev_set_drvdata(dev, adau);
 
-	if (firmware_name) {
-		adau->sigmadsp = devm_sigmadsp_init_regmap(dev, regmap, NULL,
-			firmware_name);
-		if (IS_ERR(adau->sigmadsp)) {
-			dev_warn(dev, "Could not find firmware file: %ld\n",
-				PTR_ERR(adau->sigmadsp));
-			adau->sigmadsp = NULL;
-		}
-	}
+	sigmadsp_init_regmap(&adau->sigmadsp, NULL, regmap);
 
 	if (switch_mode)
 		switch_mode(dev);
