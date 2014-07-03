@@ -235,7 +235,7 @@ static int am33xx_pm_begin(suspend_state_t state)
 
 	cpu_idle_poll_ctrl(true);
 
-	am33xx_pm->ipc.sleep_mode	= IPC_CMD_DS0;
+	am33xx_pm->ipc.sleep_mode	= IPC_CMD_DS0 + 1;
 	am33xx_pm->ipc.param1		= DS_IPC_DEFAULT;
 	am33xx_pm->ipc.param2		= DS_IPC_DEFAULT;
 
