@@ -65,6 +65,7 @@ struct davinci_mcasp {
 	u8	num_serializer;
 	u8	*serial_dir;
 	u8	version;
+	u8	bclk_div;
 	u16	bclk_lrclk_ratio;
 	int	streams;
 
@@ -421,6 +422,7 @@ static int davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id, int div
 			       ACLKXDIV(div - 1), ACLKXDIV_MASK);
 		mcasp_mod_bits(mcasp, DAVINCI_MCASP_ACLKRCTL_REG,
 			       ACLKRDIV(div - 1), ACLKRDIV_MASK);
+		mcasp->bclk_div = div;
 		break;
 
 	case 2:		/* BCLK/LRCLK ratio */
@@ -723,8 +725,11 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	int period_size = params_period_size(params);
 	int ret;
 
-	/* If mcasp is BCLK master we need to set BCLK divider */
-	if (mcasp->bclk_master) {
+	/*
+	 * If mcasp is BCLK master, and a BCLK divider was not provided by
+	 * the machine driver, we need to calculate the ratio.
+	 */
+	if (mcasp->bclk_master && mcasp->bclk_div == 0) {
 		unsigned int bclk_freq = snd_soc_params_to_bclk(params);
 		if (mcasp->sysclk_freq % bclk_freq != 0) {
 			dev_err(mcasp->dev, "Can't produce required BCLK\n");
