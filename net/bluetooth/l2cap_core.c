@@ -1855,8 +1855,9 @@ static void l2cap_streaming_send(struct l2cap_chan *chan,
 		__pack_control(chan, control, skb);
 
 		if (chan->fcs == L2CAP_FCS_CRC16) {
-			u16 fcs = crc16(0, (u8 *) skb->data, skb->len);
-			put_unaligned_le16(fcs, skb_put(skb, L2CAP_FCS_SIZE));
+			// overwrite the already appended FCS with the newly calculated one
+			u16 fcs = crc16(0, (u8 *) skb->data, skb->len - L2CAP_FCS_SIZE);
+			put_unaligned_le16(fcs, skb->data + skb->len - L2CAP_FCS_SIZE);
 		}
 
 		l2cap_do_send(chan, skb);
