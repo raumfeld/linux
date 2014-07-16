@@ -178,7 +178,7 @@ static int sigma_fw_load_data(struct sigmadsp *sigmadsp,
 	struct sigmadsp_data *data;
 
 	if (length <= sizeof(*data_chunk))
-	    return -EINVAL;
+		return -EINVAL;
 
 	data_chunk = (struct sigma_fw_chunk_data *)chunk;
 	
@@ -227,13 +227,13 @@ static int sigma_fw_load_control(struct sigmadsp *sigmadsp,
 	int ret;
 
 	if (length <= sizeof(*ctrl_chunk))
-	    return -EINVAL;
+		return -EINVAL;
 
 	ctrl_chunk = (const struct sigma_fw_chunk_control *)chunk;
 
 	name_len = length - sizeof(*ctrl_chunk);
 	if (name_len > 43) /* Max ALSA control name length */
-	    name_len = 43;
+		name_len = 43;
 
 	/* Make sure there are no non-displayable characaters in the string */
 	if (!sigma_fw_validate_control_name(ctrl_chunk->name, name_len))
@@ -574,7 +574,7 @@ static int sigmadsp_alloc_control(struct sigmadsp *sigmadsp,
 
 	ret = snd_ctl_add(sigmadsp->codec->card->snd_card, kcontrol);
 	if (ret)
-	    return ret;
+		return ret;
 
 	ctrl->kcontrol = kcontrol;
 
@@ -609,7 +609,7 @@ int sigmadsp_setup(struct sigmadsp *sigmadsp, unsigned int samplerate)
 			continue;
 		ret = sigmadsp_write(sigmadsp, data->addr, data->data,
 			data->length);
-		if (ret)
+		if (ret < 0)
 			goto err;
 	}
 
