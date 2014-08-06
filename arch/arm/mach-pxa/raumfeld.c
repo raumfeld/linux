@@ -914,15 +914,9 @@ static struct platform_device vcc3v3_device = {
 	},
 };
 
-static struct platform_device raumfeld_soc_device = {
-	.name	= "snd-soc-pxa3xx-raumfeld",
-	.id	= -1,
-};
-
 static struct platform_device *raumfeld_common_audio_devices[] = {
 	&vcc5v0_device,
 	&vcc3v3_device,
-	&raumfeld_soc_device,
 };
 
 /* Fixed regulator for sta32x Vdda supply

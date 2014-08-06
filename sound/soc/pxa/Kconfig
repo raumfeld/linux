@@ -163,7 +163,7 @@ config SND_SOC_ZYLONITE
 
 config SND_SOC_RAUMFELD
 	tristate "SoC Audio support Raumfeld audio adapter"
-	depends on SND_PXA2XX_SOC && PXA3xx
+	depends on SND_PXA2XX_SOC && (MACH_RAUMFELD_SPEAKER || MACH_RAUMFELD_CONNECTOR)
 	depends on I2C && SPI_MASTER
 	select SND_PXA_SOC_SSP
 	select SND_SOC_CS4270
