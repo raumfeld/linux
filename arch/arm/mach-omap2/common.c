@@ -17,7 +17,7 @@
 #include "common.h"
 #include "omap-secure.h"
 #include "asm/mach/map.h"
-
+#include "asm/memblock.h"
 
 /*
  * Stub function for OMAP2 so that common files
