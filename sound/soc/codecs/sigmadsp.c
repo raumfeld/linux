@@ -544,7 +544,7 @@ void sigmadsp_reset(struct sigmadsp *sigmadsp)
 
 	list_for_each_entry(ctrl, &sigmadsp->ctrl_list, head) {
 		if (ctrl->kcontrol)
-			snd_ctl_remove(sigmadsp->codec->card->snd_card, ctrl->kcontrol);
+			snd_ctl_remove(sigmadsp->codec->component.card->snd_card, ctrl->kcontrol);
 	}
 
 	sigmadsp->current_samplerate = 0;
@@ -572,7 +572,7 @@ static int sigmadsp_alloc_control(struct sigmadsp *sigmadsp,
 
 	kcontrol->private_free = sigma_fw_control_free;
 
-	ret = snd_ctl_add(sigmadsp->codec->card->snd_card, kcontrol);
+	ret = snd_ctl_add(sigmadsp->codec->component.card->snd_card, kcontrol);
 	if (ret)
 		return ret;
 
