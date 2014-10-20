@@ -116,7 +116,7 @@ static int wkup_m3_probe(struct platform_device *pdev)
 
 	wkup_m3->dev = &pdev->dev;
 
-	wkup_m3->code = devm_request_and_ioremap(wkup_m3->dev, mem);
+	wkup_m3->code = devm_ioremap_resource(wkup_m3->dev, mem);
 	if (!wkup_m3->code) {
 		dev_err(wkup_m3->dev, "could not ioremap\n");
 		ret = -EADDRNOTAVAIL;
