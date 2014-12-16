@@ -184,7 +184,7 @@ static int am33xx_s800_common_hw_params(struct snd_pcm_substream *substream,
 
 	/* BCLK divider */
 	ret = snd_soc_dai_set_clkdiv(cpu_dai, 1,
-			priv->mclk_rate_current / (rate * bclk_div * DATA_WORD_WIDTH));
+	priv->mclk_rate_current / (rate * bclk_div * DATA_WORD_WIDTH));
 	if (ret < 0)
 		return ret;
 
