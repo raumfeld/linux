@@ -31,6 +31,7 @@ struct snd_soc_am33xx_s800 {
 	struct snd_soc_card	card;
 	struct clk 		*mclk;
 	unsigned int		mclk_rate;
+	unsigned int 		mclk_rate_current;
 	signed int		drift;
 	int			passive_mode_gpio;
 	int			amp_overheat_gpio;
@@ -49,9 +50,9 @@ static int am33xx_s800_set_mclk(struct snd_soc_am33xx_s800 *priv)
 	signed long comp, clk;
 
 	drift = priv->drift * sgn;
-	comp = ((priv->mclk_rate / DATA_WORD_WIDTH) * drift ) / (1000000ULL / DATA_WORD_WIDTH) ;
+	comp = ((priv->mclk_rate_current / DATA_WORD_WIDTH) * drift ) / (1000000ULL / DATA_WORD_WIDTH) ;
 	comp *= sgn;
-	clk = priv->mclk_rate - comp;
+	clk = priv->mclk_rate_current - comp;
 
 	ret = clk_set_rate(priv->mclk, clk);
 	if (ret < 0)
@@ -142,23 +143,39 @@ static int am33xx_s800_common_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_card *card = codec_dai->card;
 	struct snd_soc_am33xx_s800 *priv = snd_soc_card_get_drvdata(card);
-	unsigned int clk, rate = params_rate(params);
+	unsigned int rate = params_rate(params);
 	unsigned int bclk_div = is_spdif ? 4 : 2;
 	int ret;
 
-	clk = priv->mclk_rate = (rate % 16000 == 0) ? 24576000 : 22579200;
+	const unsigned int base_44100_clks = 11025;
+	const unsigned int base_48000_clks = 12000;
 
+	if (priv->mclk_rate % base_48000_clks == 0)
+		priv->mclk_rate_current = 
+			(rate % 16000 == 0) ? 
+			priv->mclk_rate : 
+			(priv->mclk_rate / 48000 * 44100);
+	else if (priv->mclk_rate % base_44100_clks == 0)
+		priv->mclk_rate_current = 
+			(rate % 16000 == 0) ? 
+			(priv->mclk_rate / 44100 * 48000) : 
+			priv->mclk_rate;
+	else {
+		dev_err(priv->card.dev, "mclk_rate in device tree is invalid\n");
+		return -EINVAL;
+	}
+		
 	ret = am33xx_s800_set_mclk(priv);
 	if (ret < 0)
 		return ret;
 
 	/* propagate the clock rate */
-	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, clk, SND_SOC_CLOCK_IN);
+	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, priv->mclk_rate_current, SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
 
 	/* intentionally ignore errors - the codec driver may not care */
-	snd_soc_dai_set_sysclk(codec_dai, 0, clk, SND_SOC_CLOCK_IN);
+	snd_soc_dai_set_sysclk(codec_dai, 0, priv->mclk_rate_current, SND_SOC_CLOCK_IN);
 
 	/* MCLK divider */
 	ret = snd_soc_dai_set_clkdiv(cpu_dai, 0, 1);
@@ -167,7 +184,7 @@ static int am33xx_s800_common_hw_params(struct snd_pcm_substream *substream,
 
 	/* BCLK divider */
 	ret = snd_soc_dai_set_clkdiv(cpu_dai, 1,
-			clk / (rate * bclk_div * DATA_WORD_WIDTH));
+			priv->mclk_rate_current / (rate * bclk_div * DATA_WORD_WIDTH));
 	if (ret < 0)
 		return ret;
 
@@ -191,8 +208,6 @@ static int am33xx_s800_common_hw_free(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_card *card = codec_dai->card;
 	struct snd_soc_am33xx_s800 *priv = snd_soc_card_get_drvdata(card);
-
-	priv->mclk_rate = 0;
 
 	return 0;
 }
@@ -247,7 +262,7 @@ static int am33xx_s800_drift_put(struct snd_kcontrol *kcontrol,
 
         priv->drift = ucontrol->value.integer.value[0];
 
-	if (priv->mclk_rate) {
+	if (priv->mclk_rate_current) {
 		ret = am33xx_s800_set_mclk(priv);
 		if (ret < 0)
 			dev_warn(card->dev,
@@ -374,6 +389,7 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to get MCLK\n");
 		return -EPROBE_DEFER;
 	}
+	clk_prepare_enable(priv->mclk);
 
 	priv->regulator = devm_regulator_get(dev, "vd");
 	if (IS_ERR(priv->regulator)) {
@@ -383,10 +399,17 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 
 	/* this is a hack to temporarily disable the MCLK in test mode */
 	if (of_get_property(top_node, "sue,disable-clk", NULL)) {
-		clk_prepare_enable(priv->mclk);
 		clk_disable_unprepare(priv->mclk);
 		return 0;
 	}
+
+	/* get desired master clock from dt, this is desired due to emc  */
+	if (of_property_read_u32(top_node, "mclk_rate", &priv->mclk_rate)) {
+		printk("%s: Invalid value for mclk_rate in device tree!\n", __func__);
+		return 0;
+	}
+
+	printk("%s: Setting mclk to %i Hz\n", __func__, priv->mclk_rate);
 
 	/* machine controls */
 	priv->card.controls = am33xx_s800_controls;
@@ -566,6 +589,7 @@ static int snd_soc_am33xx_s800_remove(struct platform_device *pdev)
 	snd_soc_am33xx_s800_shutdown_amp(&pdev->dev, priv);
 	snd_soc_unregister_card(&priv->card);
 	regulator_disable(priv->regulator);
+	clk_disable_unprepare(priv->mclk);
 
 	return 0;
 }
@@ -574,6 +598,8 @@ static int snd_soc_am33xx_s800_suspend(struct device *dev)
 {
         struct snd_soc_card *card = dev_get_drvdata(dev);
 	struct snd_soc_am33xx_s800 *priv = snd_soc_card_get_drvdata(card);
+
+	clk_disable_unprepare(priv->mclk);
 
 	snd_soc_am33xx_s800_shutdown_amp(dev, priv);
 	regulator_disable(priv->regulator);
@@ -593,6 +619,12 @@ static int snd_soc_am33xx_s800_resume(struct device *dev)
 	struct snd_soc_card *card = dev_get_drvdata(dev);
 	struct snd_soc_am33xx_s800 *priv = snd_soc_card_get_drvdata(card);
 	int ret;
+
+	ret = clk_prepare_enable(priv->mclk);
+	if (ret < 0) {
+		dev_err(dev, "unable to enable clock: %d\n", ret);
+		return ret;
+	}
 
 	ret = regulator_enable(priv->regulator);
 	if (ret < 0) {
