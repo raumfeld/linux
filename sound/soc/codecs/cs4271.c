@@ -171,6 +171,8 @@ struct cs4271_private {
 	int				gpio_disable;
 	/* enable soft reset workaround */
 	bool				enable_soft_reset;
+	/* regmap config  */
+	const struct regmap_config	*regmap_config;
 };
 
 static const struct snd_soc_dapm_widget cs4271_dapm_widgets[] = {
@@ -567,6 +569,11 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 		mdelay(1);
 	}
 
+	/* Reinit register cache */
+	ret = regmap_reinit_cache(cs4271->regmap, cs4271->regmap_config);
+	if (ret < 0)
+		return ret;
+
 	ret = regmap_update_bits(cs4271->regmap, CS4271_MODE2,
 				 CS4271_MODE2_PDN | CS4271_MODE2_CPEN,
 				 CS4271_MODE2_PDN | CS4271_MODE2_CPEN);
@@ -576,6 +583,7 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 				 CS4271_MODE2_PDN, 0);
 	if (ret < 0)
 		return ret;
+
 	/* Power-up sequence requires 85 uS */
 	udelay(85);
 
@@ -621,6 +629,8 @@ static int cs4271_common_probe(struct device *dev,
 	cs4271 = devm_kzalloc(dev, sizeof(*cs4271), GFP_KERNEL);
 	if (!cs4271)
 		return -ENOMEM;
+
+	cs4271->regmap_config = NULL;
 
 	if (of_match_device(cs4271_dt_ids, dev))
 		cs4271->gpio_nreset =
@@ -726,6 +736,8 @@ static int cs4271_i2c_probe(struct i2c_client *client,
 	cs4271->regmap = devm_regmap_init_i2c(client, &cs4271_i2c_regmap);
 	if (IS_ERR(cs4271->regmap))
 		return PTR_ERR(cs4271->regmap);
+
+	cs4271->regmap_config = &cs4271_i2c_regmap;
 
 	return snd_soc_register_codec(&client->dev, &soc_codec_dev_cs4271,
 		&cs4271_dai, 1);
