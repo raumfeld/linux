@@ -548,7 +548,8 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 						 IRQF_TRIGGER_FALLING |
 						 IRQF_ONESHOT;
 
-			ret = request_threaded_irq(gpio_to_irq(priv->amp_overcurrent_gpio),
+			ret = devm_request_threaded_irq(
+						   dev, gpio_to_irq(priv->amp_overcurrent_gpio),
 						   NULL, am33xx_s800_amp_overcurrent_irq,
 						   irq_flags, "Amplifier Overcurrent", priv);
 			if (ret < 0)
@@ -585,6 +586,13 @@ static void snd_soc_am33xx_s800_shutdown_amp(struct device *dev,
 static int snd_soc_am33xx_s800_remove(struct platform_device *pdev)
 {
 	struct snd_soc_am33xx_s800 *priv = platform_get_drvdata(pdev);
+	struct device *dev = &pdev->dev;
+
+	if (gpio_is_valid(priv->amp_overheat_gpio))
+		devm_free_irq(dev, gpio_to_irq(priv->amp_overheat_gpio), priv);
+
+	if (gpio_is_valid(priv->amp_overcurrent_gpio))
+		devm_free_irq(dev, gpio_to_irq(priv->amp_overcurrent_gpio), priv);
 
 	snd_soc_am33xx_s800_shutdown_amp(&pdev->dev, priv);
 	snd_soc_unregister_card(&priv->card);
