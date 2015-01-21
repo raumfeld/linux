@@ -851,7 +851,13 @@ static int tas5086_probe(struct snd_soc_codec *codec)
 	}
 
 	tas5086_reset(priv);
+	regcache_mark_dirty(priv->regmap);
+
 	ret = tas5086_init(codec->dev, priv);
+	if (ret < 0)
+		goto exit_disable_regulators;
+
+	ret = regcache_sync(priv->regmap);
 	if (ret < 0)
 		goto exit_disable_regulators;
 
