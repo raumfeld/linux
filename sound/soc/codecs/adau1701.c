@@ -670,14 +670,6 @@ static int adau1701_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	/*
-	 * Let the pll_clkdiv variable default to something that won't happen
-	 * at runtime. That way, we can postpone the firmware download from
-	 * adau1701_reset() to a point in time when we know the correct PLL
-	 * mode parameters.
-	 */
-	adau1701->pll_clkdiv = ADAU1707_CLKDIV_UNSET;
-
 	/* initalize with pre-configured pll mode settings */
 	ret = adau1701_reset(codec, adau1701->pll_clkdiv, 0);
 	if (ret < 0)
@@ -758,8 +750,16 @@ static int adau1701_i2c_probe(struct i2c_client *client,
 		if (gpio_pll_mode[1] < 0 && gpio_pll_mode[1] != -ENOENT)
 			return gpio_pll_mode[1];
 
-		of_property_read_u32(dev->of_node, "adi,pll-clkdiv",
-				     &adau1701->pll_clkdiv);
+		/*
+		 * If pll_clkdiv is set in dt, we use that value. Otherwise the
+		 * pll_clkdiv variable defaults to something that won't happen
+		 * at runtime. That way, we can postpone the firmware download from
+		 * adau1701_reset() to a point in time when we know the correct PLL
+		 * mode parameters.
+		 */
+		if (of_property_read_u32(dev->of_node, "adi,pll-clkdiv",
+				     &adau1701->pll_clkdiv))
+			adau1701->pll_clkdiv = ADAU1707_CLKDIV_UNSET;
 
 		of_property_read_u8_array(dev->of_node, "adi,pin-config",
 					  adau1701->pin_config,
