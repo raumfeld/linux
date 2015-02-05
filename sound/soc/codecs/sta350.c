@@ -856,15 +856,6 @@ static int sta350_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
-			ret = regulator_bulk_enable(
-				ARRAY_SIZE(sta350->supplies),
-				sta350->supplies);
-			if (ret < 0) {
-				dev_err(codec->dev,
-					"Failed to enable supplies: %d\n",
-					ret);
-				return ret;
-			}
 			sta350_startup_sequence(sta350);
 			sta350_cache_sync(codec);
 		}
@@ -887,9 +878,6 @@ static int sta350_set_bias_level(struct snd_soc_codec *codec,
 
 		if (sta350->gpiod_nreset)
 			gpiod_set_value(sta350->gpiod_nreset, 0);
-
-		regulator_bulk_disable(ARRAY_SIZE(sta350->supplies),
-				       sta350->supplies);
 		break;
 	}
 	codec->dapm.bias_level = level;
@@ -1057,8 +1045,6 @@ static int sta350_probe(struct snd_soc_codec *codec)
 	sta350->coef_shadow[61] = 0x400000;
 
 	sta350_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	/* Bias level configuration will have done an extra enable */
-	regulator_bulk_disable(ARRAY_SIZE(sta350->supplies), sta350->supplies);
 
 	return 0;
 }
@@ -1068,6 +1054,7 @@ static int sta350_remove(struct snd_soc_codec *codec)
 	struct sta350_priv *sta350 = snd_soc_codec_get_drvdata(codec);
 
 	sta350_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	regulator_bulk_disable(ARRAY_SIZE(sta350->supplies), sta350->supplies);
 
 	return 0;
 }
