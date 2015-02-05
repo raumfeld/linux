@@ -691,7 +691,7 @@ static int adau1701_probe(struct snd_soc_codec *codec)
 	adau1701->pll_clkdiv = ADAU1707_CLKDIV_UNSET;
 
 	/* initalize with pre-configured pll mode settings */
-	ret = adau1701_reset(codec, adau1701->pll_clkdiv, 0);
+	ret = adau1701_reset(codec, adau1701->pll_clkdiv, 48000);
 	if (ret < 0)
 		goto exit_regulators_disable;
 
