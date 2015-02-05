@@ -671,7 +671,7 @@ static int adau1701_probe(struct snd_soc_codec *codec)
 		return ret;
 
 	/* initalize with pre-configured pll mode settings */
-	ret = adau1701_reset(codec, adau1701->pll_clkdiv, 0);
+	ret = adau1701_reset(codec, adau1701->pll_clkdiv, 48000);
 	if (ret < 0)
 		return ret;
 
