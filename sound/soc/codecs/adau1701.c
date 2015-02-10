@@ -527,16 +527,16 @@ static int adau1701_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	if (invert_lrclk) {
-		seroctl |= ADAU1701_SEROCTL_INV_LRCLK;
-		serictl |= ADAU1701_SERICTL_INV_LRCLK;
-	}
+//	HACK: If we invert the clks here, we dont have bass on the one m
+//	if (invert_lrclk) {
+//		seroctl |= ADAU1701_SEROCTL_INV_LRCLK;
+//		serictl |= ADAU1701_SERICTL_INV_LRCLK;
+//	}
 
 	adau1701->dai_fmt = fmt & SND_SOC_DAIFMT_FORMAT_MASK;
 
 	regmap_write(adau1701->regmap, ADAU1701_SERICTL, serictl);
-	regmap_update_bits(adau1701->regmap, ADAU1701_SEROCTL,
-		~ADAU1701_SEROCTL_WORD_LEN_MASK, seroctl);
+	regmap_write(adau1701->regmap, ADAU1701_SEROCTL, seroctl);
 
 	return 0;
 }
