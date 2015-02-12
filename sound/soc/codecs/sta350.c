@@ -656,10 +656,10 @@ static int sta350_set_dai_fmt(struct snd_soc_dai *codec_dai,
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
-		confb |= STA350_CONFB_C2IM;
+		confb |= STA350_CONFB_C1IM;
 		break;
 	case SND_SOC_DAIFMT_NB_IF:
-		confb |= STA350_CONFB_C1IM;
+		confb |= STA350_CONFB_C2IM;
 		break;
 	default:
 		return -EINVAL;
