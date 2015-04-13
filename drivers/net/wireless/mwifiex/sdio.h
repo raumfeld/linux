@@ -262,6 +262,7 @@ struct sdio_mmc_card {
 
 	struct mwifiex_sdio_mpa_tx mpa_tx;
 	struct mwifiex_sdio_mpa_rx mpa_rx;
+	struct list_head next;
 };
 
 struct mwifiex_sdio_device {
