@@ -268,6 +268,7 @@ struct sdio_mmc_card {
 
 	/* needed for card reset */
 	const struct sdio_device_id *device_id;
+	struct list_head next;
 };
 
 struct mwifiex_sdio_device {
