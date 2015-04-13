@@ -69,6 +69,12 @@ static struct memory_type_mapping mem_type_mapping_tbl[] = {
 };
 
 /*
+ * list of active cards
+ */
+static LIST_HEAD(cards);
+static DEFINE_MUTEX(cards_mutex);
+
+/*
  * SDIO probe.
  *
  * This function probes an mwifiex device and registers it. It allocates
@@ -129,6 +135,10 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 		sdio_release_host(func);
 		ret = -1;
 	}
+
+	mutex_lock(&cards_mutex);
+	list_add(&card->next, &cards);
+	mutex_unlock(&cards_mutex);
 
 	return ret;
 }
@@ -195,6 +205,10 @@ mwifiex_sdio_remove(struct sdio_func *func)
 	card = sdio_get_drvdata(func);
 	if (!card)
 		return;
+
+	mutex_lock(&cards_mutex);
+	list_del(&card->next);
+	mutex_unlock(&cards_mutex);
 
 	adapter = card->adapter;
 	if (!adapter || !adapter->priv_num)
