@@ -437,7 +437,6 @@ enum rdwr_status {
 
 enum mwifiex_iface_work_flags {
 	MWIFIEX_IFACE_WORK_FW_DUMP,
-	MWIFIEX_IFACE_WORK_CARD_RESET,
 };
 
 struct mwifiex_adapter;
