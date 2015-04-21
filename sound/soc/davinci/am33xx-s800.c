@@ -141,7 +141,7 @@ static int am33xx_s800_common_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_card *card = codec_dai->card;
+	struct snd_soc_card *card = codec_dai->component->card;
 	struct snd_soc_am33xx_s800 *priv = snd_soc_card_get_drvdata(card);
 	unsigned int rate = params_rate(params);
 	unsigned int bclk_div = is_spdif ? 4 : 2;
@@ -151,20 +151,20 @@ static int am33xx_s800_common_hw_params(struct snd_pcm_substream *substream,
 	const unsigned int base_48000_clks = 12000;
 
 	if (priv->mclk_rate % base_48000_clks == 0)
-		priv->mclk_rate_current = 
-			(rate % 16000 == 0) ? 
-			priv->mclk_rate : 
+		priv->mclk_rate_current =
+			(rate % 16000 == 0) ?
+			priv->mclk_rate :
 			(priv->mclk_rate / 48000 * 44100);
 	else if (priv->mclk_rate % base_44100_clks == 0)
-		priv->mclk_rate_current = 
-			(rate % 16000 == 0) ? 
-			(priv->mclk_rate / 44100 * 48000) : 
+		priv->mclk_rate_current =
+			(rate % 16000 == 0) ?
+			(priv->mclk_rate / 44100 * 48000) :
 			priv->mclk_rate;
 	else {
 		dev_err(priv->card.dev, "mclk_rate in device tree is invalid\n");
 		return -EINVAL;
 	}
-		
+
 	ret = am33xx_s800_set_mclk(priv);
 	if (ret < 0)
 		return ret;
@@ -206,7 +206,7 @@ static int am33xx_s800_common_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_card *card = codec_dai->card;
+	struct snd_soc_card *card = codec_dai->component->card;
 	struct snd_soc_am33xx_s800 *priv = snd_soc_card_get_drvdata(card);
 
 	return 0;
