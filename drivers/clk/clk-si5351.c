@@ -1128,13 +1128,6 @@ static int si5351_dt_parse(struct i2c_client *client,
 	if (!pdata)
 		return -ENOMEM;
 
-	pdata->clk_xtal = of_clk_get(np, 0);
-	if (!IS_ERR(pdata->clk_xtal))
-		clk_put(pdata->clk_xtal);
-	pdata->clk_clkin = of_clk_get(np, 1);
-	if (!IS_ERR(pdata->clk_clkin))
-		clk_put(pdata->clk_clkin);
-
 	/*
 	 * property silabs,pll-source : <num src>, [<..>]
 	 * allow to selectively set pll source
@@ -1288,6 +1281,12 @@ static int si5351_dt_parse(struct i2c_client *client,
 		pdata->clkout[num].pll_master =
 			of_property_read_bool(child, "silabs,pll-master");
 	}
+
+	// If I understand the resent changes in drivers/clk/clkdev.c right,
+	// clk_put() must not be called here
+	pdata->clk_xtal = of_clk_get(np, 0);
+	pdata->clk_clkin = of_clk_get(np, 1);
+
 	client->dev.platform_data = pdata;
 
 	return 0;
@@ -1571,6 +1570,21 @@ static int si5351_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
+static int si5351_i2c_remove(struct i2c_client *client)
+{
+	struct si5351_platform_data *pdata = client->dev.platform_data;
+
+	printk ("#### %s:%i\n", __func__, __LINE__);
+
+	if(!IS_ERR(pdata->clk_xtal))
+		clk_put(pdata->clk_xtal);
+
+	if(!IS_ERR(pdata->clk_clkin))
+		clk_put(pdata->clk_clkin);
+
+	return 0;
+}
+
 static const struct i2c_device_id si5351_i2c_ids[] = {
 	{ "si5351a", SI5351_VARIANT_A },
 	{ "si5351a-msop", SI5351_VARIANT_A3 },
@@ -1586,6 +1600,7 @@ static struct i2c_driver si5351_driver = {
 		.of_match_table = of_match_ptr(si5351_dt_ids),
 	},
 	.probe = si5351_i2c_probe,
+	.remove = si5351_i2c_remove,
 	.id_table = si5351_i2c_ids,
 };
 module_i2c_driver(si5351_driver);
