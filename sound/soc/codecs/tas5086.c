@@ -551,6 +551,12 @@ static const struct snd_kcontrol_new tas5086_controls[] = {
 			 0, 0xff, 1, tas5086_dac_tlv),
 	SOC_SINGLE_BOOL_EXT("De-emphasis Switch", 0,
 			    tas5086_get_deemph, tas5086_put_deemph),
+	SOC_SINGLE("Channel1 Mute Switch", TAS5086_SOFT_MUTE, 0, 1, 0),
+	SOC_SINGLE("Channel2 Mute Switch", TAS5086_SOFT_MUTE, 1, 1, 0),
+	SOC_SINGLE("Channel3 Mute Switch", TAS5086_SOFT_MUTE, 2, 1, 0),
+	SOC_SINGLE("Channel4 Mute Switch", TAS5086_SOFT_MUTE, 3, 1, 0),
+	SOC_SINGLE("Channel5 Mute Switch", TAS5086_SOFT_MUTE, 4, 1, 0),
+	SOC_SINGLE("Channel6 Mute Switch", TAS5086_SOFT_MUTE, 5, 1, 0),
 };
 
 /* Input mux controls */
