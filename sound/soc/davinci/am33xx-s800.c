@@ -415,6 +415,7 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 	priv->card.controls = am33xx_s800_controls;
 	priv->card.num_controls = ARRAY_SIZE(am33xx_s800_controls);
 
+	priv->card.owner = THIS_MODULE;
 	priv->card.dev = dev;
 	snd_soc_of_parse_card_name(&priv->card, "sue,card-name");
 
