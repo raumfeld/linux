@@ -1289,9 +1289,24 @@ static int omap_gpio_runtime_suspend(struct device *dev)
 		writel_relaxed(wake_low | bank->context.fallingdetect,
 			     bank->base + bank->regs->fallingdetect);
 	wake_hi = bank->context.leveldetect1 & bank->context.wake_en;
-	if (wake_hi)
-		writel_relaxed(wake_hi | bank->context.risingdetect,
-			     bank->base + bank->regs->risingdetect);
+
+	/*
+	 * Raumfeld HACK
+	 *
+	 * This was introduced by:
+	 * 68942edb09f69b6e09522d1d346665eb3aadde49
+	 *
+	 * But does not make sense for us.
+	 *
+	 * We had problems, that devices wake up again, just after they were
+	 * put to sleep. I guess this is because, we trigger a sleep even by
+	 * falling edge, followed by a wakeup by the rising edge.
+	 *
+	 * So disable all rigin edges as wakeup source.
+	 *
+	 */
+	writel_relaxed(0,
+		     bank->base + bank->regs->risingdetect);
 
 	if (!bank->enabled_non_wakeup_gpios)
 		goto update_gpio_context_count;
