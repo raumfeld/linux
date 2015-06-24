@@ -81,6 +81,28 @@ extern unsigned int omap3_do_wfi_sz;
 /* ... and its pointer from SRAM after copy */
 extern void (*omap3_do_wfi_sram)(void);
 
+/* for sharing core pm ops with amx3 pm modules */
+struct am33xx_pm_ops {
+	int	(*init)(void);
+	int	(*soc_suspend)(unsigned int state, int (*fn)(unsigned long));
+};
+
+/* for sharing asm function addrs with amx3 pm modules */
+struct am33xx_pm_sram_addr {
+	void (*do_wfi)(void);
+	unsigned long *do_wfi_sz;
+	unsigned long *resume_offset;
+	unsigned long *emif_sram_table;
+};
+
+struct am33xx_pm_ops *amx3_get_pm_ops(void);
+struct am33xx_pm_sram_addr *amx3_get_sram_addrs(void);
+
+extern struct am33xx_pm_sram_addr am33xx_pm_sram;
+extern struct am33xx_pm_sram_addr am43xx_pm_sram;
+
+extern unsigned int save_secure_ram_context_sz;
+
 extern void omap3_save_scratchpad_contents(void);
 
 #define PM_RTA_ERRATUM_i608		(1 << 0)
