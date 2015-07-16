@@ -321,12 +321,6 @@ static inline void omap_set_gpio_trigger(struct gpio_bank *bank, int gpio,
 	bank->context.fallingdetect =
 			readl_relaxed(bank->base + bank->regs->fallingdetect);
 
-	if (likely(!(bank->non_wakeup_gpios & gpio_bit))) {
-		omap_gpio_rmw(base, bank->regs->wkup_en, gpio_bit, trigger != 0);
-		bank->context.wake_en =
-			readl_relaxed(bank->base + bank->regs->wkup_en);
-	}
-
 	/* This part needs to be executed always for OMAP{34xx, 44xx} */
 	if (!bank->regs->irqctrl) {
 		/* On omap24xx proceed only when valid GPIO bit is set */
@@ -387,7 +381,7 @@ static int omap_set_gpio_triggering(struct gpio_bank *bank, int gpio,
 	void __iomem *base = bank->base;
 	u32 l = 0;
 
-	if (bank->regs->leveldetect0 && bank->regs->wkup_en) {
+	if (bank->regs->leveldetect0) {
 		omap_set_gpio_trigger(bank, gpio, trigger);
 	} else if (bank->regs->irqctrl) {
 		reg += bank->regs->irqctrl;
@@ -416,12 +410,6 @@ static int omap_set_gpio_triggering(struct gpio_bank *bank, int gpio,
 			l |= 2 << (gpio << 1);
 		if (trigger & IRQ_TYPE_EDGE_FALLING)
 			l |= BIT(gpio << 1);
-
-		/* Enable wake-up during idle for dynamic tick */
-		omap_gpio_rmw(base, bank->regs->wkup_en, BIT(gpio), trigger);
-		bank->context.wake_en =
-			readl_relaxed(bank->base + bank->regs->wkup_en);
-		writel_relaxed(l, reg);
 	}
 	return 0;
 }
@@ -450,15 +438,6 @@ static void omap_enable_gpio_module(struct gpio_bank *bank, unsigned offset)
 static void omap_disable_gpio_module(struct gpio_bank *bank, unsigned offset)
 {
 	void __iomem *base = bank->base;
-
-	if (bank->regs->wkup_en &&
-	    !LINE_USED(bank->mod_usage, offset) &&
-	    !LINE_USED(bank->irq_usage, offset)) {
-		/* Disable wake-up during idle for dynamic tick */
-		omap_gpio_rmw(base, bank->regs->wkup_en, BIT(offset), 0);
-		bank->context.wake_en =
-			readl_relaxed(bank->base + bank->regs->wkup_en);
-	}
 
 	if (bank->regs->ctrl && !BANK_USED(bank)) {
 		void __iomem *reg = bank->base + bank->regs->ctrl;
