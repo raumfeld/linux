@@ -228,7 +228,9 @@ static void __init omap3_cpuinfo(void)
 		cpu_name =  "AM335X";
 	} else if (soc_is_am437x()) {
 		cpu_name =  "AM437x";
-	} else if (soc_is_ti814x()) {
+	} else if (soc_is_am438x()) {
+		cpu_name =  "AM438X";
+	} else if (cpu_is_ti814x()) {
 		cpu_name = "TI814X";
 	} else if (omap3_has_iva() && omap3_has_sgx()) {
 		/* OMAP3430, OMAP3525, OMAP3515, OMAP3503 devices */
