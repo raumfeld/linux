@@ -718,6 +718,65 @@ mwifiex_hscfg_read(struct file *file, char __user *ubuf,
 	return ret;
 }
 
+/* Temp buffer for response data */
+static struct mwifiex_ds_misc_cmd host_cmd_buf;
+
+/*
+ * Proc hostcmd file write handler.
+ *
+ * This function is called when the 'hostcmd' file is opened for writing
+ *
+ */
+static ssize_t
+mwifiex_hostcmd_write(struct file *file,
+		       const char __user *ubuf, size_t count, loff_t *ppos)
+{
+	struct mwifiex_private *priv =
+		(struct mwifiex_private *) file->private_data;
+	int ret = 0;
+
+	if (copy_from_user(host_cmd_buf.cmd, ubuf, count)) {
+		ret = -EFAULT;
+		goto done;
+	}
+
+	host_cmd_buf.len = count;
+
+	ret = mwifiex_hostcmd(priv, &host_cmd_buf);
+
+	if (ret < 0)
+		pr_err("hostcmd err: %d\n", ret);
+	else
+		ret = count;
+done:
+	return ret;
+}
+
+/*
+ * Proc hostcmd read handler.
+ *
+ * This function is called when the 'hostcmd' file is opened for reading
+ *
+ */
+static ssize_t
+mwifiex_hostcmd_read(struct file *file, char __user *ubuf,
+		      size_t count, loff_t *ppos)
+{
+	int ret;
+
+	if (host_cmd_buf.len == 0) {
+		pr_err("No data in response buffer. Did you perform write?\n");
+		return -ENOMEM;
+	}
+
+	ret = simple_read_from_buffer(ubuf, count, ppos, host_cmd_buf.cmd,
+					host_cmd_buf.len);
+
+	host_cmd_buf.len = 0;
+
+	return ret;
+}
+
 #define MWIFIEX_DFS_ADD_FILE(name) do {                                 \
 	if (!debugfs_create_file(#name, 0644, priv->dfs_dev_dir,        \
 			priv, &mwifiex_dfs_##name##_fops))              \
@@ -752,6 +811,7 @@ MWIFIEX_DFS_FILE_OPS(regrdwr);
 MWIFIEX_DFS_FILE_OPS(rdeeprom);
 MWIFIEX_DFS_FILE_OPS(hscfg);
 MWIFIEX_DFS_FILE_OPS(histogram);
+MWIFIEX_DFS_FILE_OPS(hostcmd);
 
 /*
  * This function creates the debug FS directory structure and the files.
@@ -776,6 +836,7 @@ mwifiex_dev_debugfs_init(struct mwifiex_private *priv)
 	MWIFIEX_DFS_ADD_FILE(fw_dump);
 	MWIFIEX_DFS_ADD_FILE(hscfg);
 	MWIFIEX_DFS_ADD_FILE(histogram);
+	MWIFIEX_DFS_ADD_FILE(hostcmd);
 }
 
 /*

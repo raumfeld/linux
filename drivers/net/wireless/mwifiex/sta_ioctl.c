@@ -1259,6 +1259,16 @@ mwifiex_eeprom_read(struct mwifiex_private *priv, u16 offset, u16 bytes,
 	return ret;
 }
 
+int mwifiex_hostcmd(struct mwifiex_private *priv, void *data)
+{
+	int ret = 0;
+
+	/* Send request to firmware */
+	ret = mwifiex_send_cmd(priv, 0, HostCmd_ACT_GEN_SET, 0, data, true);
+
+	return ret;
+}
+
 /*
  * This function sets a generic IE. In addition to generic IE, it can
  * also handle WPA, WPA2 and WAPI IEs.
