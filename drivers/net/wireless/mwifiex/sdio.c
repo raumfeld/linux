@@ -69,6 +69,9 @@ static struct memory_type_mapping mem_type_mapping_tbl[] = {
 	{"EXTLAST", NULL, 0, 0xFE},
 };
 
+/* Indicate if load FW in MFG (testing) mode */
+static int mfg_mode = 0;
+
 /*
  * SDIO probe.
  *
@@ -122,7 +125,7 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 	}
 
 	if (mwifiex_add_card(card, &add_remove_card_sem, &sdio_ops,
-			     MWIFIEX_SDIO)) {
+			     MWIFIEX_SDIO, mfg_mode)) {
 		pr_err("%s: add card failed\n", __func__);
 		kfree(card);
 		sdio_claim_host(func);
@@ -2428,6 +2431,10 @@ mwifiex_sdio_cleanup_module(void)
 
 module_init(mwifiex_sdio_init_module);
 module_exit(mwifiex_sdio_cleanup_module);
+
+module_param(mfg_mode, int, 0);
+MODULE_PARM_DESC(mfg_mode,
+		"0: Download normal firmware; 1: Download MFG firmware");
 
 MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell WiFi-Ex SDIO Driver version " SDIO_VERSION);

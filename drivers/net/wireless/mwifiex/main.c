@@ -1100,7 +1100,7 @@ static void mwifiex_main_work_queue(struct work_struct *work)
  */
 int
 mwifiex_add_card(void *card, struct semaphore *sem,
-		 struct mwifiex_if_ops *if_ops, u8 iface_type)
+		 struct mwifiex_if_ops *if_ops, u8 iface_type, u8 mfg_mode)
 {
 	struct mwifiex_adapter *adapter;
 
@@ -1124,6 +1124,7 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 	init_waitqueue_head(&adapter->cmd_wait_q.wait);
 	adapter->cmd_wait_q.status = 0;
 	adapter->scan_wait_q_woken = false;
+	adapter->mfg_mode = mfg_mode;
 
 	if ((num_possible_cpus() > 1) || adapter->iface_type == MWIFIEX_USB) {
 		adapter->rx_work_enabled = true;

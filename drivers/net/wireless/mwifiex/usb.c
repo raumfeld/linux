@@ -52,6 +52,9 @@ static struct usb_device_id mwifiex_usb_table[] = {
 
 MODULE_DEVICE_TABLE(usb, mwifiex_usb_table);
 
+/* Indicate if load FW in MFG (testing) mode */
+static int mfg_mode = 0;
+
 static int mwifiex_usb_submit_rx_urb(struct urb_context *ctx, int size);
 
 /* This function handles received packet. Necessary action is taken based on
@@ -435,7 +438,7 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, card);
 
 	ret = mwifiex_add_card(card, &add_remove_card_sem, &usb_ops,
-			       MWIFIEX_USB);
+			       MWIFIEX_USB, mfg_mode);
 	if (ret) {
 		pr_err("%s: mwifiex_add_card failed: %d\n", __func__, ret);
 		usb_reset_device(udev);
@@ -1091,6 +1094,10 @@ static void mwifiex_usb_cleanup_module(void)
 
 module_init(mwifiex_usb_init_module);
 module_exit(mwifiex_usb_cleanup_module);
+
+module_param(mfg_mode, int, 0);
+MODULE_PARM_DESC(mfg_mode,
+		"0: Download normal firmware; 1: Download MFG firmware");
 
 MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell WiFi-Ex USB Driver version" USB_VERSION);

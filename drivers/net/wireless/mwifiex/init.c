@@ -528,6 +528,10 @@ int mwifiex_init_fw(struct mwifiex_adapter *adapter)
 
 	adapter->hw_status = MWIFIEX_HW_STATUS_INITIALIZING;
 
+	/* Skip init sequence cmds to FW */
+	if (adapter->mfg_mode)
+		first_sta = false;
+
 	/* Allocate memory for member of adapter structure */
 	ret = mwifiex_allocate_adapter(adapter);
 	if (ret)

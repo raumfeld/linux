@@ -909,6 +909,7 @@ struct mwifiex_adapter {
 	u32 num_in_chan_stats;
 	int survey_idx;
 	bool auto_tdls;
+	u8 mfg_mode;
 };
 
 void mwifiex_process_tx_queue(struct mwifiex_adapter *adapter);
@@ -1254,7 +1255,7 @@ static inline u8 mwifiex_is_any_intf_active(struct mwifiex_private *priv)
 
 int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 			     u32 func_init_shutdown);
-int mwifiex_add_card(void *, struct semaphore *, struct mwifiex_if_ops *, u8);
+int mwifiex_add_card(void *, struct semaphore *, struct mwifiex_if_ops *, u8, u8);
 int mwifiex_remove_card(struct mwifiex_adapter *, struct semaphore *);
 
 void mwifiex_get_version(struct mwifiex_adapter *adapter, char *version,
