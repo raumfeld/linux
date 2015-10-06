@@ -1300,6 +1300,7 @@ int mwifiex_reg_read(struct mwifiex_private *priv, u32 reg_type,
 
 int mwifiex_eeprom_read(struct mwifiex_private *priv, u16 offset, u16 bytes,
 			u8 *value);
+int mwifiex_hostcmd(struct mwifiex_private *priv, void *data);
 
 int mwifiex_set_11n_httx_cfg(struct mwifiex_private *priv, int data);
 
