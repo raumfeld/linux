@@ -461,6 +461,7 @@ static int adau1701_hw_params(struct snd_pcm_substream *substream,
 	case 96000:
 		val = ADAU1701_DSPCTRL_SR_96;
 		break;
+	case 44100:
 	case 48000:
 		val = ADAU1701_DSPCTRL_SR_48;
 		break;
@@ -627,8 +628,8 @@ static int adau1701_startup(struct snd_pcm_substream *substream,
 	return sigmadsp_restrict_params(adau1701->sigmadsp, substream);
 }
 
-#define ADAU1701_RATES (SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 | \
-	SNDRV_PCM_RATE_192000)
+#define ADAU1701_RATES (SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |\
+	SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000)
 
 #define ADAU1701_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE)
