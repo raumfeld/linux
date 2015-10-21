@@ -131,6 +131,8 @@
 		.ops		= &axp20x_ops_table,				\
 	}
 
+static const int axp152_ldo0_data[] = { 5000000, 3300000, 2800000, 2500000 };
+
 static const int axp20x_ldo4_data[] = { 1250000, 1300000, 1400000, 1500000, 1600000,
 					1700000, 1800000, 1900000, 2000000, 2500000,
 					2700000, 2800000, 3000000, 3100000, 3200000,
@@ -165,6 +167,30 @@ static struct regulator_ops axp20x_ops_sw = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
+};
+
+static const struct regulator_desc axp152_regulators[] = {
+	AXP_DESC(AXP152, DCDC1, "dcdc1", "vin1", 1700, 3500, 100,
+		AXP152_DCDC1_V_OUT, 0xf, AXP152_LDO3456_DC1234_CTRL, BIT(7)),
+	AXP_DESC(AXP152, DCDC2, "dcdc2", "vin2", 700, 2275, 25,
+		AXP152_DCDC2_V_OUT, 0x3f, AXP152_LDO3456_DC1234_CTRL, BIT(6)),
+	AXP_DESC(AXP152, DCDC3, "dcdc3", "vin3", 700, 3500, 50,
+		AXP152_DCDC3_V_OUT, 0x3f, AXP152_LDO3456_DC1234_CTRL, BIT(5)),
+	AXP_DESC(AXP152, DCDC4, "dcdc4", "vin4", 700, 3500, 25,
+		AXP152_DCDC4_V_OUT, 0x7f, AXP152_LDO3456_DC1234_CTRL, BIT(4)),
+	AXP_DESC_TABLE(AXP152, LDO0, "ldo0", "ldo0in", axp152_ldo0_data,
+		AXP152_LDO0_CTRL, 0x30, AXP152_LDO0_CTRL, BIT(7)),
+	AXP_DESC_FIXED(AXP152, RTC_LDO, "rtc_ldo", "aldoin", 3100),
+	AXP_DESC(AXP152, ALDO1, "aldo1", "aldoin", 1200, 3300, 100,
+		AXP152_ALDO12_V_OUT, 0xf0, AXP152_LDO3456_DC1234_CTRL, BIT(3)),
+	AXP_DESC(AXP152, ALDO2, "aldo2", "aldoin", 1200, 3300, 100,
+		AXP152_ALDO12_V_OUT, 0xf, AXP152_LDO3456_DC1234_CTRL, BIT(2)),
+	AXP_DESC(AXP152, DLDO1, "dldo1", "dldoin", 700, 3300, 100,
+		AXP152_DLDO1_V_OUT, 0x1f, AXP152_LDO3456_DC1234_CTRL, BIT(1)),
+	AXP_DESC(AXP152, DLDO2, "dldo2", "dldoin", 700, 3300, 100,
+		AXP152_DLDO2_V_OUT, 0x1f, AXP152_LDO3456_DC1234_CTRL, BIT(0)),
+
+	/* todo gpio_ldo */
 };
 
 static const struct regulator_desc axp20x_regulators[] = {
@@ -236,6 +262,7 @@ static int axp20x_set_dcdc_freq(struct platform_device *pdev, u32 dcdcfreq)
 	u32 min, max, def, step;
 
 	switch (axp20x->variant) {
+	case AXP152_ID:
 	case AXP202_ID:
 	case AXP209_ID:
 		min = 750;
@@ -309,6 +336,7 @@ static int axp20x_set_dcdc_workmode(struct regulator_dev *rdev, int id, u32 work
 	unsigned int mask;
 
 	switch (axp20x->variant) {
+	case AXP152_ID:
 	case AXP202_ID:
 	case AXP209_ID:
 		if ((id != AXP20X_DCDC2) && (id != AXP20X_DCDC3))
@@ -352,6 +380,10 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 	u32 workmode;
 
 	switch (axp20x->variant) {
+	case AXP152_ID:
+		regulators = axp152_regulators;
+		nregulators = AXP152_REG_ID_MAX;
+		break;
 	case AXP202_ID:
 	case AXP209_ID:
 		regulators = axp20x_regulators;
