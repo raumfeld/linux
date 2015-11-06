@@ -542,6 +542,7 @@ static int cs4271_soc_resume(struct snd_soc_codec *codec)
 	cs4271_reset(codec);
 
 	/* Restore codec state */
+	regcache_mark_dirty(cs4271->regmap);
 	ret = regcache_sync(cs4271->regmap);
 	if (ret < 0)
 		return ret;
@@ -764,7 +765,7 @@ static const struct regmap_config cs4271_i2c_regmap = {
 
 	.reg_defaults = cs4271_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(cs4271_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_FLAT,
 
 	.volatile_reg = cs4271_volatile_reg,
 };
