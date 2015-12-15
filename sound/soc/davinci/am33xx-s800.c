@@ -350,6 +350,28 @@ static const struct of_device_id snd_soc_am33xx_s800_match[] = {
 	{ }
 };
 
+static void snd_soc_am33xx_s800_startup_amp(struct device *dev,
+					     struct snd_soc_am33xx_s800 *priv)
+{
+	if (gpio_is_valid(priv->amp_reset_gpio)) {
+		msleep(priv->amp_reset_delay_ms);
+		gpio_set_value(priv->amp_reset_gpio, 1);
+	}
+
+	pinctrl_pm_select_default_state(dev);
+}
+
+static void snd_soc_am33xx_s800_shutdown_amp(struct device *dev,
+					     struct snd_soc_am33xx_s800 *priv)
+{
+	pinctrl_pm_select_sleep_state(dev);
+
+	if (gpio_is_valid(priv->amp_reset_gpio)) {
+		gpio_set_value(priv->amp_reset_gpio, 0);
+		msleep(priv->amp_reset_delay_ms);
+	}
+}
+
 static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -378,6 +400,18 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 		dai_fmt |= SND_SOC_DAIFMT_NB_IF;
 	else
 		dai_fmt |= SND_SOC_DAIFMT_NB_NF;
+
+	priv->amp_reset_gpio = of_get_named_gpio(top_node, "sue,amp-reset-gpio", 0);
+	if (gpio_is_valid(priv->amp_reset_gpio)) {
+		ret = devm_gpio_request_one(dev, priv->amp_reset_gpio,
+					  GPIOF_OUT_INIT_LOW,
+					    "Audio Amplifier Reset");
+		if (ret < 0)
+			priv->amp_reset_gpio = -EINVAL;
+
+		of_property_read_u32(top_node, "sue,amp-reset-delay-ms",
+				     &priv->amp_reset_delay_ms);
+	}
 
 	/* request pin mux */
 	pinctrl = devm_pinctrl_get_select_default(dev);
@@ -558,31 +592,12 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 		}
 	}
 
-	priv->amp_reset_gpio = of_get_named_gpio(top_node, "sue,amp-reset-gpio", 0);
-	if (gpio_is_valid(priv->amp_reset_gpio)) {
-		ret = devm_gpio_request_one(dev, priv->amp_reset_gpio,
-					    GPIOF_OUT_INIT_HIGH,
-					    "Audio Amplifier Reset");
-		if (ret < 0)
-			priv->amp_reset_gpio = -EINVAL;
-
-		of_property_read_u32(top_node, "sue,amp-reset-delay-ms",
-				     &priv->amp_reset_delay_ms);
-	}
+	snd_soc_am33xx_s800_startup_amp(dev, priv);
 
 	return 0;
 }
 
-static void snd_soc_am33xx_s800_shutdown_amp(struct device *dev,
-					     struct snd_soc_am33xx_s800 *priv)
-{
-	pinctrl_pm_select_sleep_state(dev);
 
-	if (gpio_is_valid(priv->amp_reset_gpio)) {
-		gpio_set_value(priv->amp_reset_gpio, 0);
-		msleep(priv->amp_reset_delay_ms);
-	}
-}
 
 static int snd_soc_am33xx_s800_remove(struct platform_device *pdev)
 {
@@ -595,7 +610,7 @@ static int snd_soc_am33xx_s800_remove(struct platform_device *pdev)
 	if (gpio_is_valid(priv->amp_overcurrent_gpio))
 		devm_free_irq(dev, gpio_to_irq(priv->amp_overcurrent_gpio), priv);
 
-	snd_soc_am33xx_s800_shutdown_amp(&pdev->dev, priv);
+	snd_soc_am33xx_s800_shutdown_amp(dev, priv);
 	snd_soc_unregister_card(&priv->card);
 	regulator_disable(priv->regulator);
 	clk_disable_unprepare(priv->mclk);
@@ -641,10 +656,7 @@ static int snd_soc_am33xx_s800_resume(struct device *dev)
 		return ret;
 	}
 
-	if (gpio_is_valid(priv->amp_reset_gpio))
-		gpio_set_value(priv->amp_reset_gpio, 1);
-
-	pinctrl_pm_select_default_state(dev);
+	snd_soc_am33xx_s800_startup_amp(dev, priv);
 
 	return snd_soc_resume(dev);
 }
