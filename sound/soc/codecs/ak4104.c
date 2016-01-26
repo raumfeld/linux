@@ -15,6 +15,7 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
+#include <linux/delay.h>
 #include <sound/asoundef.h>
 #include <sound/core.h>
 #include <sound/soc.h>
@@ -49,6 +50,7 @@
 struct ak4104_private {
 	struct regmap *regmap;
 	struct regulator *regulator;
+	int gpio_nreset;
 };
 
 static const struct snd_soc_dapm_widget ak4104_dapm_widgets[] = {
@@ -171,6 +173,18 @@ static struct snd_soc_dai_driver ak4104_dai = {
 	.ops = &ak4101_dai_ops,
 };
 
+static void ak4104_reset(struct snd_soc_codec *codec)
+{
+	struct ak4104_private *ak4104 = snd_soc_codec_get_drvdata(codec);
+
+	if (gpio_is_valid(ak4104->gpio_nreset)) {
+		gpio_set_value(ak4104->gpio_nreset, 0);
+		mdelay(1);
+		gpio_set_value(ak4104->gpio_nreset, 1);
+		mdelay(1);
+	}
+}
+
 static int ak4104_probe(struct snd_soc_codec *codec)
 {
 	struct ak4104_private *ak4104 = snd_soc_codec_get_drvdata(codec);
@@ -181,6 +195,9 @@ static int ak4104_probe(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "Unable to enable regulator: %d\n", ret);
 		return ret;
 	}
+
+	/* Do a proper reset after power up */
+	ak4104_reset(codec);
 
 	/* set power-up and non-reset bits */
 	ret = regmap_update_bits(ak4104->regmap, AK4104_REG_CONTROL1,
@@ -216,19 +233,28 @@ static int ak4104_remove(struct snd_soc_codec *codec)
 #ifdef CONFIG_PM
 static int ak4104_soc_suspend(struct snd_soc_codec *codec)
 {
-	struct ak4104_private *priv = snd_soc_codec_get_drvdata(codec);
+	struct ak4104_private *ak4104 = snd_soc_codec_get_drvdata(codec);
 
-	regulator_disable(priv->regulator);
+	regulator_disable(ak4104->regulator);
 
 	return 0;
 }
 
 static int ak4104_soc_resume(struct snd_soc_codec *codec)
 {
-	struct ak4104_private *priv = snd_soc_codec_get_drvdata(codec);
+	struct ak4104_private *ak4104 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	ret = regulator_enable(priv->regulator);
+	ret = regulator_enable(ak4104->regulator);
+	if (ret < 0)
+		return ret;
+
+	/* Do a proper reset after power up */
+	ak4104_reset(codec);
+
+	/* Restore codec state */
+	regcache_mark_dirty(ak4104->regmap);
+	ret = regcache_sync(ak4104->regmap);
 	if (ret < 0)
 		return ret;
 
@@ -295,10 +321,10 @@ static int ak4104_spi_probe(struct spi_device *spi)
 
 	if (np) {
 		enum of_gpio_flags flags;
-		int gpio = of_get_named_gpio_flags(np, "reset-gpio", 0, &flags);
+		ak4104->gpio_nreset = of_get_named_gpio_flags(np, "reset-gpio", 0, &flags);
 
-		if (gpio_is_valid(gpio)) {
-			ret = devm_gpio_request_one(&spi->dev, gpio,
+		if (gpio_is_valid(ak4104->gpio_nreset)) {
+			ret = devm_gpio_request_one(&spi->dev, ak4104->gpio_nreset,
 				     flags & OF_GPIO_ACTIVE_LOW ?
 					GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH,
 				     "ak4104 reset");
