@@ -623,12 +623,20 @@ static int snd_soc_am33xx_s800_suspend(struct device *dev)
         struct snd_soc_card *card = dev_get_drvdata(dev);
 	struct snd_soc_am33xx_s800 *priv = snd_soc_card_get_drvdata(card);
 
-	clk_disable_unprepare(priv->mclk);
-
 	snd_soc_am33xx_s800_shutdown_amp(dev, priv);
 	regulator_disable(priv->regulator);
 
 	return snd_soc_suspend(dev);
+}
+
+static int snd_soc_am33xx_s800_suspend_late(struct device *dev)
+{
+	struct snd_soc_card *card = dev_get_drvdata(dev);
+	struct snd_soc_am33xx_s800 *priv = snd_soc_card_get_drvdata(card);
+
+	clk_disable_unprepare(priv->mclk);
+
+	return 0;
 }
 
 static void snd_soc_am33xx_s800_shutdown(struct platform_device *pdev)
@@ -663,6 +671,7 @@ static int snd_soc_am33xx_s800_resume(struct device *dev)
 
 const struct dev_pm_ops snd_soc_am33xx_s800_pm_ops = {
 	.suspend = snd_soc_am33xx_s800_suspend,
+	.suspend_late = snd_soc_am33xx_s800_suspend_late,
 	.resume = snd_soc_am33xx_s800_resume,
 	.freeze = snd_soc_suspend,
 	.thaw = snd_soc_resume,
