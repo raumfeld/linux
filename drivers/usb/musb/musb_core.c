@@ -2488,6 +2488,12 @@ static int musb_resume(struct device *dev)
 
 	musb_start(musb);
 
+	/*
+	 * Wait till controller generates MUSB_INTR_CONNECT if device
+	 * is already connected while resuming.
+	 */
+	msleep(200);
+
 	return 0;
 }
 
