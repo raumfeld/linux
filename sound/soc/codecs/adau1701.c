@@ -112,6 +112,7 @@ struct adau1701 {
 	unsigned int dai_fmt;
 	unsigned int pll_clkdiv;
 	unsigned int sysclk;
+	unsigned int current_rate;
 	struct regmap *regmap;
 	struct i2c_client *client;
 	u8 pin_config[12];
@@ -437,22 +438,24 @@ static int adau1701_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
-	unsigned int clkdiv = adau1701->sysclk / params_rate(params);
+	unsigned int rate = params_rate(params);
+	unsigned int clkdiv = adau1701->sysclk / rate;
 	unsigned int val;
 	int ret;
 
 	/*
-	 * If the mclk/lrclk ratio changes, the chip needs updated PLL
+	 * If the sample rate changes, the chip needs updated PLL
 	 * mode GPIO settings, and a full reset cycle, including a new
 	 * firmware upload.
 	 */
-	if (clkdiv != adau1701->pll_clkdiv) {
-		ret = adau1701_reset(codec, clkdiv, params_rate(params));
+	if (adau1701->current_rate != rate) {
+		adau1701->current_rate = rate;
+		ret = adau1701_reset(codec, clkdiv, rate);
 		if (ret < 0)
 			return ret;
 	}
 
-	switch (params_rate(params)) {
+	switch (rate) {
 	case 192000:
 		val = ADAU1701_DSPCTRL_SR_192;
 		break;
