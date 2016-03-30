@@ -43,6 +43,8 @@
 #define ATH8031_PHY_ID 0x004dd074
 #define ATH8035_PHY_ID 0x004dd072
 
+#define LED_DISABLE_BIT		15
+
 MODULE_DESCRIPTION("Atheros 803x PHY driver");
 MODULE_AUTHOR("Matus Ujhelyi");
 MODULE_LICENSE("GPL");
@@ -188,6 +190,38 @@ static int at803x_resume(struct phy_device *phydev)
 	return 0;
 }
 
+static ssize_t at803x_led_get(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct phy_device *phydev = dev_get_drvdata(dev);
+	int read = phy_read(phydev, AT803X_LED_CONTROL);
+
+	read = (read >> LED_DISABLE_BIT) & 1 ? 0 : 1;
+	return sprintf(buf, "%x\n", read);
+}
+
+static ssize_t at803x_led_set(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct phy_device *phydev = dev_get_drvdata(dev);
+	struct at803x_priv *priv = phydev->priv;
+	int val = phy_read(phydev, AT803X_LED_CONTROL);
+
+	if (!strncmp(buf, "0", 1))
+		val |= BIT(LED_DISABLE_BIT);
+	else if (!strncmp(buf, "1", 1))
+		val &= ~BIT(LED_DISABLE_BIT);
+	else
+		return -EINVAL;
+
+	phy_write(phydev, AT803X_LED_CONTROL, val);
+
+	return count;
+}
+
+static DEVICE_ATTR(led_enable, 0600, at803x_led_get, at803x_led_set);
+
 static int at803x_probe(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->dev;
@@ -205,16 +239,28 @@ static int at803x_probe(struct phy_device *phydev)
 
 	phydev->priv = priv;
 
-	return 0;
+	dev_set_drvdata(dev, phydev);
+
+	return device_create_file(dev, &dev_attr_led_enable);
+}
+
+static void at803x_remove(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->dev;
+
+	device_remove_file(dev, &dev_attr_led_enable);
 }
 
 static int at803x_config_init(struct phy_device *phydev)
 {
 	int ret;
+	struct at803x_priv *priv;
 
 	ret = genphy_config_init(phydev);
 	if (ret < 0)
 		return ret;
+
+	priv = phydev->priv;
 
 	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID) {
 		ret = phy_write(phydev, AT803X_DEBUG_ADDR,
@@ -307,6 +353,7 @@ static struct phy_driver at803x_driver[] = {
 	.flags			= PHY_HAS_INTERRUPT,
 	.config_aneg		= genphy_config_aneg,
 	.read_status		= genphy_read_status,
+	.remove			= at803x_remove,
 	.driver			= {
 		.owner = THIS_MODULE,
 	},
@@ -326,6 +373,7 @@ static struct phy_driver at803x_driver[] = {
 	.flags			= PHY_HAS_INTERRUPT,
 	.config_aneg		= genphy_config_aneg,
 	.read_status		= genphy_read_status,
+	.remove			= at803x_remove,
 	.driver			= {
 		.owner = THIS_MODULE,
 	},
@@ -347,6 +395,7 @@ static struct phy_driver at803x_driver[] = {
 	.read_status		= genphy_read_status,
 	.ack_interrupt		= &at803x_ack_interrupt,
 	.config_intr		= &at803x_config_intr,
+	.remove			= at803x_remove,
 	.driver			= {
 		.owner = THIS_MODULE,
 	},
