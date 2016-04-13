@@ -447,7 +447,8 @@ static int adau1701_hw_params(struct snd_pcm_substream *substream,
 	 * mode GPIO settings, and a full reset cycle, including a new
 	 * firmware upload.
 	 */
-	if (adau1701->current_rate != rate) {
+	if (adau1701->current_rate != rate ||
+	    adau1701->pll_clkdiv == ADAU1707_CLKDIV_UNSET) {
 		adau1701->current_rate = rate;
 		ret = adau1701_reset(codec, clkdiv, rate);
 		if (ret < 0)
