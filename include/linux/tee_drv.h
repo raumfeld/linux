@@ -146,7 +146,8 @@ int tee_device_register(struct tee_device *teedev);
 void tee_device_unregister(struct tee_device *teedev);
 
 /**
- * struct tee_shm_pool_mem_info - holds information needed to create a shared memory pool
+ * struct tee_shm_pool_mem_info - holds information needed to create a shared
+ * memory pool
  * @vaddr:	Virtual address of start of pool
  * @paddr:	Physical address of start of pool
  * @size:	Size in bytes of the pool
@@ -158,9 +159,10 @@ struct tee_shm_pool_mem_info {
 };
 
 /**
- * tee_shm_pool_alloc_res_mem() - Create a shared memory pool from reserved memory range
- * @dev:	Device allocating the pool
- * @priv_info:	Information for driver private shared memory pool
+ * tee_shm_pool_alloc_res_mem() - Create a shared memory pool from reserved
+ * memory range
+ * @dev:	 Device allocating the pool
+ * @priv_info:	 Information for driver private shared memory pool
  * @dmabuf_info: Information for dma-buf shared memory pool
  *
  * Start and end of pools will must be page aligned.

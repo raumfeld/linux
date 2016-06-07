@@ -11,10 +11,14 @@
  * GNU General Public License for more details.
  *
  */
+
+#define pr_fmt(fmt) "%s: " fmt, __func__
+
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/idr.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/tee_drv.h>
 #include <linux/uaccess.h>
@@ -256,9 +260,8 @@ static int tee_ioctl_open_session(struct tee_context *ctx,
 
 	uarg = (struct tee_ioctl_open_session_arg __user *)(unsigned long)
 		buf.buf_ptr;
-	rc = copy_from_user(&arg, uarg, sizeof(arg));
-	if (rc)
-		return rc;
+	if (copy_from_user(&arg, uarg, sizeof(arg)))
+		return -EFAULT;
 
 	if (sizeof(arg) + TEE_IOCTL_PARAM_SIZE(arg.num_params) != buf.buf_len)
 		return -EINVAL;
@@ -320,9 +323,8 @@ static int tee_ioctl_invoke(struct tee_context *ctx,
 	if (!ctx->teedev->desc->ops->invoke_func)
 		return -EINVAL;
 
-	rc = copy_from_user(&buf, ubuf, sizeof(buf));
-	if (rc)
-		return rc;
+	if (copy_from_user(&buf, ubuf, sizeof(buf)))
+		return -EFAULT;
 
 	if (buf.buf_len > TEE_MAX_ARG_SIZE ||
 	    buf.buf_len < sizeof(struct tee_ioctl_invoke_arg))
@@ -609,6 +611,7 @@ static long tee_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 }
 
 static const struct file_operations tee_fops = {
+	.owner = THIS_MODULE,
 	.open = tee_open,
 	.release = tee_release,
 	.unlocked_ioctl = tee_ioctl,
@@ -680,12 +683,13 @@ struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
 	teedev->dev.class = tee_class;
 	teedev->dev.release = tee_release_device;
 	teedev->dev.parent = dev;
+
 	teedev->dev.devt = MKDEV(MAJOR(tee_devt), teedev->id);
 
 	rc = dev_set_name(&teedev->dev, "%s", teedev->name);
 	if (rc) {
 		ret = ERR_PTR(rc);
-		goto err;
+		goto err_devt;
 	}
 
 	cdev_init(&teedev->cdev, &tee_fops);
@@ -704,6 +708,8 @@ struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
 	teedev->pool = pool;
 
 	return teedev;
+err_devt:
+	unregister_chrdev_region(teedev->dev.devt, 1);
 err:
 	dev_err(dev, "could not register %s driver\n",
 		teedesc->flags & TEE_DESC_PRIVILEGED ? "privileged" : "client");
@@ -976,4 +982,18 @@ static int __init tee_init(void)
 	return rc;
 }
 
+
+static void __exit tee_exit(void)
+{
+	class_destroy(tee_class);
+	tee_class = NULL;
+	unregister_chrdev_region(tee_devt, TEE_NUM_DEVICES);
+}
+
 subsys_initcall(tee_init);
+module_exit(tee_exit);
+
+MODULE_AUTHOR("Linaro");
+MODULE_DESCRIPTION("TEE Driver");
+MODULE_VERSION("1.0");
+MODULE_LICENSE("GPL v2");
