@@ -485,8 +485,10 @@ static int optee_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "initialized driver\n");
 	return 0;
 err:
-	tee_device_unregister(optee->teedev);
-	tee_device_unregister(optee->supp_teedev);
+	if (optee) {
+		tee_device_unregister(optee->teedev);
+		tee_device_unregister(optee->supp_teedev);
+	}
 	if (pool)
 		tee_shm_pool_free(pool);
 	if (ioremaped_shm)
