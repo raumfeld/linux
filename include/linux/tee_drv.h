@@ -35,10 +35,12 @@ struct tee_shm_pool;
 /**
  * struct tee_context - driver specific context on file pointer data
  * @teedev:	pointer to this drivers struct tee_device
+ * @list_shm:	List of shared memory object owned by this context
  * @data:	driver specific context data, managed by the driver
  */
 struct tee_context {
 	struct tee_device *teedev;
+	struct list_head list_shm;
 	void *data;
 };
 
@@ -193,7 +195,7 @@ void *tee_get_drvdata(struct tee_device *teedev);
 
 /**
  * tee_shm_alloc() - Allocate shared memory
- * @teedev:	Driver that allocates the shared memory
+ * @ctx:	Context that allocates the shared memory
  * @size:	Requested size of shared memory
  * @flags:	Flags setting properties for the requested shared memory.
  *
@@ -205,8 +207,7 @@ void *tee_get_drvdata(struct tee_device *teedev);
  *
  * @returns a pointer to 'struct tee_shm'
  */
-struct tee_shm *tee_shm_alloc(struct tee_device *teedev, size_t size,
-			      u32 flags);
+struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags);
 
 /**
  * tee_shm_free() - Free shared memory
@@ -266,11 +267,11 @@ int tee_shm_get_id(struct tee_shm *shm);
 
 /**
  * tee_shm_get_from_id() - Find shared memory object and increase referece count
- * @teedev:	Driver owning the shared mmemory
+ * @ctx:	Context owning the shared memory
  * @id:		Id of shared memory object
  * @returns a pointer to 'struct tee_shm' on success or an ERR_PTR on failure
  */
-struct tee_shm *tee_shm_get_from_id(struct tee_device *teedev, int id);
+struct tee_shm *tee_shm_get_from_id(struct tee_context *ctx, int id);
 
 struct tee_context *tee_client_open_context(struct tee_context *start,
 			int (*match)(struct tee_ioctl_version_data *,

@@ -53,6 +53,7 @@ static struct tee_context *teedev_open(struct tee_device *teedev)
 	}
 
 	ctx->teedev = teedev;
+	INIT_LIST_HEAD(&ctx->list_shm);
 	rc = teedev->desc->ops->open(ctx);
 	if (rc)
 		goto err;
@@ -67,7 +68,13 @@ err:
 
 static void teedev_close_context(struct tee_context *ctx)
 {
+	struct tee_shm *shm;
+
 	ctx->teedev->desc->ops->release(ctx);
+	mutex_lock(&ctx->teedev->mutex);
+	list_for_each_entry(shm, &ctx->list_shm, link)
+		shm->ctx = NULL;
+	mutex_unlock(&ctx->teedev->mutex);
 	tee_device_put(ctx->teedev);
 	kfree(ctx);
 }
@@ -117,8 +124,7 @@ static int tee_ioctl_shm_alloc(struct tee_context *ctx,
 
 	data.id = -1;
 
-	shm = tee_shm_alloc(ctx->teedev, data.size,
-			    TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
+	shm = tee_shm_alloc(ctx, data.size, TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 	if (IS_ERR(shm))
 		return PTR_ERR(shm);
 
@@ -179,8 +185,7 @@ static int params_from_user(struct tee_context *ctx, struct tee_param *params,
 			 * count. It's the callers responibility to do
 			 * tee_shm_put() on all resolved pointers.
 			 */
-			shm = tee_shm_get_from_id(ctx->teedev,
-						  ip.u.memref.shm_id);
+			shm = tee_shm_get_from_id(ctx, ip.u.memref.shm_id);
 			if (IS_ERR(shm))
 				return PTR_ERR(shm);
 
