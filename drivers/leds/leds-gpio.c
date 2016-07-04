@@ -212,6 +212,11 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 				led.default_state = LEDS_GPIO_DEFSTATE_ON;
 			else
 				led.default_state = LEDS_GPIO_DEFSTATE_OFF;
+
+			/* HACK: Handle special case of silent update */
+			if (!strncmp(led.name, "raumfeld:", 9) &&
+			   strstr(boot_command_line, "rf_silent_update"))
+				led.default_state = LEDS_GPIO_DEFSTATE_OFF;
 		}
 
 		if (fwnode_property_present(child, "retain-state-suspended"))
