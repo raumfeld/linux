@@ -48,6 +48,9 @@ static struct memory_type_mapping mem_type_mapping_tbl[] = {
 	{"MAC", NULL, 0, 0xF7},
 };
 
+/* Indicate if load FW in MFG (testing) mode */
+static int mfg_mode = 0;
+
 static int
 mwifiex_map_pci_memory(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 		       size_t size, int flags)
@@ -208,7 +211,7 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 	}
 
 	if (mwifiex_add_card(card, &add_remove_card_sem, &pcie_ops,
-			     MWIFIEX_PCIE)) {
+			     MWIFIEX_PCIE, mfg_mode)) {
 		pr_err("%s failed\n", __func__);
 		kfree(card);
 		return -1;
@@ -2676,6 +2679,10 @@ static void mwifiex_pcie_cleanup_module(void)
 
 module_init(mwifiex_pcie_init_module);
 module_exit(mwifiex_pcie_cleanup_module);
+
+module_param(mfg_mode, int, 0);
+MODULE_PARM_DESC(mfg_mode,
+		"0: Download normal firmware; 1: Download MFG firmware");
 
 MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell WiFi-Ex PCI-Express Driver version " PCIE_VERSION);
