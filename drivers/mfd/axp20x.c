@@ -676,8 +676,7 @@ static int axp20x_i2c_probe(struct i2c_client *i2c,
 				  axp20x->regmap_irq_chip,
 				  &axp20x->regmap_irqc);
 	if (ret) {
-		dev_err(&i2c->dev, "failed to add irq chip: %d\n", ret);
-		return ret;
+		dev_warn(&i2c->dev, "failed to add irq chip: %d\n", ret);
 	}
 
 	ret = mfd_add_devices(axp20x->dev, -1, axp20x->cells,
