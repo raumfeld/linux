@@ -825,6 +825,12 @@ static const struct of_device_id tas5086_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, tas5086_dt_ids);
 #endif
 
+static void tas5086_fixup_sample_rate(struct snd_soc_dai_driver *tas5086_dai,
+		unsigned int sample_rates)
+{
+	tas5086_dai->playback.rates = sample_rates;
+}
+
 static int tas5086_probe(struct snd_soc_codec *codec)
 {
 	struct tas5086_private *priv = snd_soc_codec_get_drvdata(codec);
@@ -959,7 +965,14 @@ static int tas5086_i2c_probe(struct i2c_client *i2c,
 
 	if (of_match_device(of_match_ptr(tas5086_dt_ids), dev)) {
 		struct device_node *of_node = dev->of_node;
+		unsigned int sample_rates;
+
 		gpio_nreset = of_get_named_gpio(of_node, "reset-gpio", 0);
+
+		ret = of_property_read_u32(of_node, "codec-sample-rates",
+				&sample_rates);
+		if (ret == 0)
+			tas5086_fixup_sample_rate(&tas5086_dai, sample_rates);
 	}
 
 	if (gpio_is_valid(gpio_nreset))
