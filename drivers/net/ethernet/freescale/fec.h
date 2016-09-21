@@ -583,6 +583,9 @@ struct fec_enet_private {
 	unsigned int next_counter;
 
 	struct fec_enet_stop_mode gpr;
+
+	int phy_reset_gpio;
+	int phy_reset_msec;
 };
 
 void fec_ptp_init(struct platform_device *pdev);
