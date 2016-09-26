@@ -496,6 +496,13 @@ static struct snd_soc_dai_driver cs4271_dai = {
 	.symmetric_rates = 1,
 };
 
+static void cs4271_fixup_sample_rate(struct snd_soc_dai_driver *cs4271_dai,
+		unsigned int sample_rates)
+{
+	cs4271_dai->playback.rates = sample_rates;
+	cs4271_dai->capture.rates = sample_rates;
+}
+
 static int cs4271_reset(struct snd_soc_codec *codec)
 {
 	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
@@ -670,9 +677,17 @@ static int cs4271_common_probe(struct device *dev,
 
 	cs4271->regmap_config = NULL;
 
-	if (of_match_device(cs4271_dt_ids, dev))
+	if (of_match_device(cs4271_dt_ids, dev)) {
+		unsigned int sample_rates;
 		cs4271->gpio_nreset =
 			of_get_named_gpio(dev->of_node, "reset-gpio", 0);
+
+		ret = of_property_read_u32(dev->of_node, "codec-sample-rates",
+				&sample_rates);
+		if (ret == 0)
+			cs4271_fixup_sample_rate(&cs4271_dai, sample_rates);
+
+	}
 
 	if (cs4271plat)
 		cs4271->gpio_nreset = cs4271plat->gpio_nreset;
