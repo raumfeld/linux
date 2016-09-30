@@ -861,6 +861,62 @@ static void ci_power_lost_work(struct work_struct *work)
 	enable_irq(ci->irq);
 }
 
+static void imx7d_check_vbus_overcurrent(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct ci_hdrc *ci =
+		container_of(dwork, struct ci_hdrc, check_vbus_work);
+	unsigned long flags = 0;
+	u32 reg;
+	int check_interval = 1000; /* Normal check interval in ms. */
+	const int overcurrent_disabled_time = 5000;
+	const int overcurrent_reenabled_time = 200;
+
+	spin_lock_irqsave(&ci->lock, flags);
+	/*
+	 * According to the reference manual for the SOC, setting or
+	 * clearing the PP bit in PORTSC should enable or disable
+	 * power to the port.  However, when tested it didn't actually
+	 * disable the power to the port, so the regulator disable was
+	 * added to really disable the power.
+	 */
+	if (ci->vbus_overcurrent) {
+		int ret;
+		dev_info(ci->dev, "reenabling port power after an overcurrent condition\n");
+		/* Reenabling the port like this doesn't work, any
+		 * device plugged in will not been seen by the driver,
+		 * some other reinitialisation is required, so leave
+		 * this register alone for the moment, it doesn't work
+		 * as advertised anyway. */
+		/* hw_write(ci, OP_PORTSC, PORTSC_PP, PORTSC_PP); */
+		ret = regulator_enable(ci->platdata->reg_vbus);
+		if (ret) {
+			/* Retry if enabling the regulator failed. */
+			dev_err(ci->dev, "reenabling vbus regulator failed!\n");
+		} else {
+			ci->vbus_overcurrent = false;
+		}
+		check_interval = overcurrent_reenabled_time;
+	} else {
+		/* check if vbus is valid */
+		reg = hw_read_id_reg(ci, 0x23c, 0xff);
+		if (!(reg & BIT(3))) {
+			dev_err(ci->dev, "vbus overcurrent detected, disabling port power!\n");
+			/* See comment in reenable code. */
+			/* hw_write(ci, OP_PORTSC, PORTSC_PP, 0); */
+			regulator_disable(ci->platdata->reg_vbus);
+			check_interval = overcurrent_disabled_time;
+			ci->vbus_overcurrent = true;
+		}
+	}
+	spin_unlock_irqrestore(&ci->lock, flags);
+
+	queue_delayed_work(
+		system_wq,
+		&ci->check_vbus_work,
+		msecs_to_jiffies(check_interval));
+}
+
 static int ci_hdrc_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
@@ -999,6 +1055,15 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 
 	/* Init workqueue for controller power lost handling */
 	INIT_WORK(&ci->power_lost_work, ci_power_lost_work);
+
+	/* Init workqueue for checking VBUS overcurrent & start it. */
+	ci->vbus_overcurrent = false;
+	INIT_DELAYED_WORK(&ci->check_vbus_work,
+			  imx7d_check_vbus_overcurrent);
+	queue_delayed_work(
+		system_wq,
+		&ci->check_vbus_work,
+		msecs_to_jiffies(1000));
 
 	ret = dbg_create_files(ci);
 	if (!ret)
