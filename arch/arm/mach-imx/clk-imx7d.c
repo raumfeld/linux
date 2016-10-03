@@ -402,6 +402,7 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 
 	clks[IMX7D_CLK_DUMMY] = imx_clk_fixed("dummy", 0);
 	clks[IMX7D_OSC_24M_CLK] = of_clk_get_by_name(ccm_node, "osc");
+	clks[IMX7D_CKIL_CLK] = of_clk_get_by_name(ccm_node, "ckil");
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx7d-anatop");
 	base = of_iomap(np, 0);
@@ -927,5 +928,9 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 
 	/* set parent of SIM1 root clock */
 	imx_clk_set_parent(clks[IMX7D_SIM1_ROOT_SRC], clks[IMX7D_PLL_SYS_MAIN_120M_CLK]);
+
+	/* reparent clko2 to 32kHz and enable the output */
+	imx_clk_set_parent(clks[IMX7D_CLKO2_ROOT_SRC], clks[IMX7D_CKIL_CLK]);
+	imx_clk_prepare_enable(clks[IMX7D_CLKO2_ROOT_DIV]);
 }
 CLK_OF_DECLARE(imx7d, "fsl,imx7d-ccm", imx7d_clocks_init);
