@@ -906,7 +906,7 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 	 *	1588 time clock source is 100Mhz
 	 */
 	imx_clk_set_parent(clks[IMX7D_ENET_AXI_ROOT_SRC], clks[IMX7D_PLL_ENET_MAIN_250M_CLK]);
-	imx_clk_set_rate(clks[IMX7D_ENET_AXI_ROOT_CLK], 267000000);
+	imx_clk_set_rate(clks[IMX7D_ENET_AXI_ROOT_CLK], 250000000);
 	imx_clk_set_parent(clks[IMX7D_ENET_PHY_REF_ROOT_SRC], clks[IMX7D_PLL_ENET_MAIN_25M_CLK]);
 
 	/* set pcie root's parent clk source */
