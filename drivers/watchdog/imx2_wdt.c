@@ -92,14 +92,27 @@ static const struct watchdog_info imx2_wdt_info = {
 	.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE | WDIOF_PRETIMEOUT,
 };
 
+/* This is the address of the SNVS register where we store the reset req flag */
+#define SNVS_REG_ADDR 0x3037009C
+#define FWUP_FLAG_SWRESET_REQ	2	/* This flag will be set when we request a reset using the `reset` command */
+
 static int imx2_restart_handler(struct notifier_block *this, unsigned long mode,
 				void *cmd)
 {
+	u32 reg;
+	void __iomem *snvs_reg = ioremap(SNVS_REG_ADDR, SZ_4K);
+
 	/* Assert SRS signal */
 	unsigned int wcr_enable = IMX2_WDT_WCR_WDE;
 	struct imx2_wdt_device *wdev = container_of(this,
 						    struct imx2_wdt_device,
 						    restart_handler);
+
+	printk(KERN_INFO "setting SWRESET_REQ flag\n");
+	reg = readl(snvs_reg);
+	reg |= (1 << FWUP_FLAG_SWRESET_REQ);
+	writel(reg, snvs_reg);
+
 	/* Assert WDOG_B signal */
 	if (wdev->wdog_b)
 		wcr_enable = 0x14;
