@@ -24,6 +24,7 @@
 
 #define PLL_NUM_OFFSET		0x10
 #define PLL_DENOM_OFFSET	0x20
+#define PLL_AV_SS_OFFSET	0x10
 #define PLL_AV_NUM_OFFSET	0x20
 #define PLL_AV_DENOM_OFFSET	0x30
 
@@ -52,8 +53,10 @@ struct clk_pllv3 {
 	u32		powerdown;
 	u32		div_mask;
 	u32		div_shift;
+	u32		ss_offset;
 	u32		num_offset;
 	u32		denom_offset;
+	enum imx_pllv3_type	type;
 };
 
 #define to_clk_pllv3(_hw) container_of(_hw, struct clk_pllv3, hw)
@@ -83,6 +86,18 @@ static int clk_pllv3_do_hardware(struct clk_hw *hw, bool enable)
 	struct clk_pllv3 *pll = to_clk_pllv3(hw);
 	int ret;
 	u32 val;
+
+	if (pll->type == IMX_PLLV3_AV_SS) {
+		u32 ss;
+
+		/* Enable spread spectrum with maximum spread width and a step size of 0x7D */
+		if (enable)
+			ss = 0xFFFF807D;
+		else
+			ss = 0;
+
+		writel_relaxed(ss, pll->base + pll->ss_offset);
+	}
 
 	val = readl_relaxed(pll->base);
 	if (enable) {
@@ -279,12 +294,16 @@ static unsigned long clk_pllv3_av_recalc_rate(struct clk_hw *hw,
 static long clk_pllv3_av_round_rate(struct clk_hw *hw, unsigned long rate,
 				    unsigned long *prate)
 {
+	struct clk_pllv3 *pll = to_clk_pllv3(hw);
 	unsigned long parent_rate = *prate;
 	unsigned long min_rate = parent_rate * 27;
 	unsigned long max_rate = parent_rate * 54;
 	u32 div;
-	u32 mfn, mfd = 1000000;
+	u32 mfn, mfd;
 	s64 temp64;
+
+	/* Use 100000 as the denominator for PLLs which use spread spectrum */
+	mfd = pll->type == IMX_PLLV3_AV_SS ? 100000 : 1000000;
 
 	if (rate > max_rate)
 		rate = max_rate;
@@ -307,8 +326,11 @@ static int clk_pllv3_av_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long min_rate = parent_rate * 27;
 	unsigned long max_rate = parent_rate * 54;
 	u32 val, div;
-	u32 mfn, mfd = 1000000;
+	u32 mfn, mfd;
 	s64 temp64;
+
+	/* Use 100000 as the denominator for PLLs which use spread spectrum */
+	mfd = pll->type == IMX_PLLV3_AV_SS ? 100000 : 1000000;
 
 	if (rate < min_rate || rate > max_rate)
 		return -EINVAL;
@@ -381,6 +403,7 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 		pll->powerup_set = true;
 		break;
 	case IMX_PLLV3_AV:
+	case IMX_PLLV3_AV_SS:
 		ops = &clk_pllv3_av_ops;
 		break;
 	case IMX_PLLV3_ENET:
@@ -395,10 +418,12 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 	pll->powerdown = BM_PLL_POWER;
 	pll->num_offset = PLL_NUM_OFFSET;
 	pll->denom_offset = PLL_DENOM_OFFSET;
+	pll->type = type;
 
 	if (cpu_is_imx7d() && type == IMX_PLLV3_ENET)
 		pll->powerdown = ENET_PLL_POWER;
-	else if (cpu_is_imx7d() && type == IMX_PLLV3_AV) {
+	else if (cpu_is_imx7d() && (type == IMX_PLLV3_AV || type == IMX_PLLV3_AV_SS)) {
+		pll->ss_offset = PLL_AV_SS_OFFSET;
 		pll->num_offset = PLL_AV_NUM_OFFSET;
 		pll->denom_offset = PLL_AV_DENOM_OFFSET;
 	}
