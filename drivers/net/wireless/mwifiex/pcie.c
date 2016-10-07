@@ -2548,19 +2548,16 @@ static void mwifiex_pcie_cleanup(struct mwifiex_adapter *adapter)
 	kfree(card);
 }
 
-/*
- * This function registers the PCIE device.
- *
- * PCIE IRQ is claimed, block size is set and driver data is initialized.
- */
-static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
+static int mwifiex_pcie_request_irq(struct mwifiex_adapter *adapter)
 {
 	int ret;
 	struct pcie_service_card *card = adapter->card;
 	struct pci_dev *pdev = card->dev;
 
-	/* save adapter pointer in card */
-	card->adapter = adapter;
+	if (pci_enable_msi(pdev) != 0)
+		pci_disable_msi(pdev);
+	else
+		card->msi_enable = 1;
 
 	ret = request_irq(pdev->irq, mwifiex_pcie_interrupt, IRQF_SHARED,
 			  "MRVL_PCIE", pdev);
@@ -2569,6 +2566,25 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 		adapter->card = NULL;
 		return -1;
 	}
+
+	return 0;
+}
+
+/*
+ * This function registers the PCIE device.
+ *
+ * PCIE IRQ is claimed, block size is set and driver data is initialized.
+ */
+static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
+{
+	struct pcie_service_card *card = adapter->card;
+	struct pci_dev *pdev = card->dev;
+
+	/* save adapter pointer in card */
+	card->adapter = adapter;
+
+	if (mwifiex_pcie_request_irq(adapter))
+		return -1;
 
 	adapter->dev = &pdev->dev;
 	adapter->tx_buf_size = card->pcie.tx_buf_size;
