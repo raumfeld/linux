@@ -63,6 +63,7 @@
 
 #define IMX2_WDT_MAX_TIME	128
 #define IMX2_WDT_DEFAULT_TIME	60		/* in seconds */
+#define IMX2_WDT_EARLY_DISABLE	1
 
 #define WDOG_SEC_TO_COUNT(s)	((s * 2 - 1) << 8)
 #define WDOG_SEC_TO_PRECOUNT(s)	(s * 2)		/* set WDOG pre timeout count*/
@@ -86,6 +87,11 @@ static unsigned timeout = IMX2_WDT_DEFAULT_TIME;
 module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds (default="
 				__MODULE_STRING(IMX2_WDT_DEFAULT_TIME) ")");
+
+static unsigned early_disable = IMX2_WDT_EARLY_DISABLE;
+module_param(early_disable, uint, 0);
+MODULE_PARM_DESC(early_disable, "Watchdog gets disabled at boot time (default="
+				__MODULE_STRING(IMX2_WDT_EARLY_DISABLE) ")");
 
 static const struct watchdog_info imx2_wdt_info = {
 	.identity = "imx2+ watchdog",
@@ -387,6 +393,11 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "timeout %d sec (nowayout=%d)\n",
 		 wdog->timeout, nowayout);
+
+	if (early_disable == 0) {
+		dev_info(&pdev->dev, "will start now\n");
+		imx2_wdt_start(wdog);
+	}
 
 	return 0;
 }
