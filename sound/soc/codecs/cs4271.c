@@ -179,6 +179,7 @@ struct cs4271_private {
 	/* regmap config  */
 	const struct regmap_config	*regmap_config;
 	struct regulator_bulk_data	supplies[ARRAY_SIZE(supply_names)];
+	bool				manual_mute;
 };
 
 static const struct snd_soc_dapm_widget cs4271_dapm_widgets[] = {
@@ -416,33 +417,46 @@ static int cs4271_hw_params(struct snd_pcm_substream *substream,
 	return cs4271_set_deemph(codec);
 }
 
-static int cs4271_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
+static int cs4271_digital_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
-	int ret;
+
 	int val_a = 0;
 	int val_b = 0;
+	int ret;
 
-	if (stream != SNDRV_PCM_STREAM_PLAYBACK)
+	if (cs4271->manual_mute)
 		return 0;
 
 	if (mute) {
 		val_a = CS4271_VOLA_MUTE;
 		val_b = CS4271_VOLB_MUTE;
+	} else {
+		val_a = 0;
+		val_b = 0;
 	}
 
-	ret = regmap_update_bits(cs4271->regmap, CS4271_VOLA,
-				 CS4271_VOLA_MUTE, val_a);
+	ret = snd_soc_update_bits(codec, CS4271_VOLA, CS4271_VOLA_MUTE, val_a);
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_update_bits(cs4271->regmap, CS4271_VOLB,
-				 CS4271_VOLB_MUTE, val_b);
+	ret = snd_soc_update_bits(codec, CS4271_VOLB, CS4271_VOLB_MUTE, val_b);
 	if (ret < 0)
 		return ret;
 
 	return 0;
+}
+
+static int cs4271_put_mute(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
+
+	cs4271->manual_mute = !ucontrol->value.integer.value[0];
+
+	return snd_soc_put_volsw(kcontrol, ucontrol);
 }
 
 /* CS4271 controls */
@@ -465,15 +479,15 @@ static const struct snd_kcontrol_new cs4271_snd_controls[] = {
 	SOC_DOUBLE("Master Capture Switch", CS4271_ADCCTL, 3, 2, 1, 1),
 	SOC_SINGLE("Dither 16-Bit Data Switch", CS4271_ADCCTL, 5, 1, 0),
 	SOC_DOUBLE("High Pass Filter Switch", CS4271_ADCCTL, 1, 0, 1, 1),
-	SOC_DOUBLE_R("Master Playback Switch", CS4271_VOLA, CS4271_VOLB,
-		7, 1, 1),
+	SOC_DOUBLE_R_EXT("Master Playback Switch", CS4271_VOLA, CS4271_VOLB,
+		7, 1, 1, snd_soc_get_volsw, cs4271_put_mute),
 };
 
 static const struct snd_soc_dai_ops cs4271_dai_ops = {
 	.hw_params	= cs4271_hw_params,
 	.set_sysclk	= cs4271_set_dai_sysclk,
 	.set_fmt	= cs4271_set_dai_fmt,
-	.mute_stream	= cs4271_mute_stream,
+	.digital_mute	= cs4271_digital_mute,
 };
 
 static struct snd_soc_dai_driver cs4271_dai = {
