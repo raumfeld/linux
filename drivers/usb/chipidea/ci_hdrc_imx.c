@@ -668,7 +668,9 @@ static int imx_controller_suspend(struct device *dev)
 		}
 	}
 
-	imx_disable_unprepare_clks(dev);
+	/* Do not disable the clocks for suspend, because we need it to detect an overcurrent condition */
+	/* imx_disable_unprepare_clks(dev); */
+
 	release_bus_freq(BUS_FREQ_HIGH);
 	data->in_lpm = true;
 
