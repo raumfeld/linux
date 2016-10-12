@@ -30,13 +30,16 @@
 #define MCLK_48k	24576000
 #define MCLK_44k1	22579200
 
+#define IMX7D_SAI_PLL_48k	884736000UL
+#define IMX7D_SAI_PLL_44k1	812851200UL
+
 struct snd_soc_am33xx_s800 {
 	struct snd_soc_card	card;
 	struct clk 		*mclk;
 	struct clk		*mclk_rx;
 	unsigned int		mclk_rate;
 	unsigned int		mclk_rate_rx;
-	signed int		drift;
+	s32			drift;
 	int			passive_mode_gpio;
 	int			cb_reset_gpio;
 	int			amp_overheat_gpio;
@@ -47,7 +50,42 @@ struct snd_soc_am33xx_s800 {
 
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pinctrl_state_pcm, *pinctrl_state_dsd;
+
+	/* i.MX7D specific */
+	struct clk *pllclk;
+	u32 nominal_pll_rate;
 };
+
+/*
+ * This function applies the drift in ppm to the current PLL value.
+ * If no PLL is specified nothing happens.
+ */
+static int am33xx_s800_apply_drift(struct snd_soc_card *card)
+{
+	int ret;
+	s32 sgn, comp, drift;
+	u32 clk_rate;
+	struct snd_soc_am33xx_s800 *priv = snd_soc_card_get_drvdata(card);
+
+	if (IS_ERR(priv->pllclk))
+		return 0;
+
+	drift = priv->drift;
+	sgn = drift > 0 ? 1 : -1;
+
+	drift = abs(drift);
+	comp = DIV_ROUND_CLOSEST_ULL((u64)priv->nominal_pll_rate * drift, 1000000UL);
+
+	clk_rate = priv->nominal_pll_rate - (comp * sgn);
+
+	dev_dbg(card->dev, "drift is %d ppm, new PLL rate is %u\n", priv->drift, clk_rate);
+
+	ret = clk_set_rate(priv->pllclk, clk_rate);
+	if (ret)
+		dev_warn(card->dev, "failed to set PLL rate %d\n", ret);
+
+	return 0;
+}
 
 static int am33xx_s800_setup_mcasp(struct snd_pcm_substream *substream, snd_pcm_format_t format)
 {
@@ -131,8 +169,7 @@ static int am33xx_s800_setup_mcasp(struct snd_pcm_substream *substream, snd_pcm_
 static int am33xx_s800_set_mclk(struct snd_soc_am33xx_s800 *priv, int stream)
 {
 	struct clk *mclk;
-	long comp, sgn;
-	unsigned long mclk_rate, clk, drift;
+	unsigned long mclk_rate;
 	int ret;
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -144,14 +181,7 @@ static int am33xx_s800_set_mclk(struct snd_soc_am33xx_s800 *priv, int stream)
 		mclk_rate = priv->mclk_rate_rx;
 	}
 
-	sgn = priv->drift > 0 ? 1 : -1;
-	drift = priv->drift * sgn;
-
-	comp = ((mclk_rate / DATA_WORD_WIDTH) * drift ) / (1000000ULL / DATA_WORD_WIDTH);
-	comp *= sgn;
-	clk = mclk_rate - comp;
-
-	ret = clk_set_rate(mclk, clk);
+	ret = clk_set_rate(mclk, mclk_rate);
 	if (ret < 0)
 		return ret;
 
@@ -245,7 +275,9 @@ static int am33xx_s800_common_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_card *card = codec_dai->component->card;
 	struct snd_soc_am33xx_s800 *priv = snd_soc_card_get_drvdata(card);
 	unsigned int mclk, rate, bclk;
+#ifdef CONFIG_SND_SOC_STREAM_AM33XX
 	unsigned int bclk_div = is_spdif ? 4 : 2;
+#endif /* CONFIG_SND_SOC_STREAM_AM33XX */
 	int ret;
 	int clk_id, div_mclk, div_bclk, div_lrclk;
 
@@ -271,10 +303,38 @@ static int am33xx_s800_common_hw_params(struct snd_pcm_substream *substream,
 
 	/* if the codec is MCLK master then do not configure our MCLK source */
 	if ((rtd->dai_link->dai_fmt & SND_SOC_DAIFMT_CMM) == 0) {
+		if (IS_ERR(priv->pllclk)) {
+			dev_warn(card->dev, "no PLL clk available\n");
+		} else {
+			u32 pllrate = 0;
+
+			/*
+			 * Depending on the audio rate we want to use different PLL rates to
+			 * to divide the PLL rate down without any error.
+			 */
+			if ((rate % 8000) == 0)
+				pllrate = IMX7D_SAI_PLL_48k;
+			else
+				pllrate = IMX7D_SAI_PLL_44k1;
+
+			ret = clk_set_rate(priv->pllclk, pllrate);
+			if (ret)
+				dev_warn(card->dev, "failed to set PLL rate %d\n", ret);
+
+			dev_info(card->dev, "Audio pll set to %u\n", pllrate);
+			priv->nominal_pll_rate = clk_get_rate(priv->pllclk);
+		}
+
+
 		ret = am33xx_s800_set_mclk(priv, substream->stream);
 		if (ret < 0) {
 			dev_warn(card->dev, "Unsupported MCLK source : %d\n", ret);
 			return ret;
+		}
+
+		if (!IS_ERR(priv->pllclk)) {
+			priv->drift = 0;
+			am33xx_s800_apply_drift(card);
 		}
 	}
 
@@ -299,6 +359,12 @@ static int am33xx_s800_common_hw_params(struct snd_pcm_substream *substream,
 		/* intentionally ignore errors - the codec driver may not care, at least give a warning */
 	}
 
+	if (params_format(params) == SNDRV_PCM_FORMAT_DSD_U8) {
+		bclk = rate * 8;
+	} else {
+		bclk = rate * 2 * DATA_WORD_WIDTH;
+	}
+
 
 #ifdef CONFIG_SND_SOC_STREAM_AM33XX
 	/* CPU MCLK divider */
@@ -312,11 +378,10 @@ static int am33xx_s800_common_hw_params(struct snd_pcm_substream *substream,
 	if (params_format(params) == SNDRV_PCM_FORMAT_DSD_U8) {
 		/* Clock rate for DSD matches bitrate */
 		ret = snd_soc_dai_set_clkdiv(cpu_dai, div_lrclk, 0);
-		bclk = rate * 8;
 	} else {
 		ret = snd_soc_dai_set_clkdiv(cpu_dai, div_lrclk, 2 * DATA_WORD_WIDTH);
-		bclk = rate * 2 * DATA_WORD_WIDTH;
 	}
+
 	if (ret < 0) {
 		dev_warn(card->dev, "Unsupported cpu dai BCLK/LRCLK divider : %d\n", ret);
  		return ret;
@@ -402,21 +467,15 @@ static int am33xx_s800_drift_get(struct snd_kcontrol *kcontrol,
 static int am33xx_s800_drift_put(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_card *card =  snd_kcontrol_chip(kcontrol);
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_am33xx_s800 *priv = snd_soc_card_get_drvdata(card);
-	int ret;
 
 	if (ucontrol->value.integer.value[0] == priv->drift)
 		return 0;
 
-        priv->drift = ucontrol->value.integer.value[0];
+	priv->drift = ucontrol->value.integer.value[0];
 
-	if (priv->mclk_rate) {
-		ret = am33xx_s800_set_mclk(priv, SNDRV_PCM_STREAM_PLAYBACK);
-		if (ret < 0)
-			dev_warn(card->dev,
-				 "Unable to set clock rate: %d\n", ret);
-	}
+	am33xx_s800_apply_drift(card);
 
         return 1;
 }
@@ -522,7 +581,15 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 
 	dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF;
 
-	priv->mclk = of_clk_get(top_node, 0);
+	priv->pllclk = devm_clk_get(&pdev->dev, "pll");
+	if (IS_ERR(priv->pllclk))
+		dev_dbg(&pdev->dev, "could not get PLL clock: %ld\n", PTR_ERR(priv->pllclk));
+
+	/* Get the default rate on boot */
+	if (!IS_ERR(priv->pllclk))
+		priv->nominal_pll_rate = clk_get_rate(priv->pllclk);
+
+	priv->mclk = devm_clk_get(&pdev->dev, "mclk");
 	if (IS_ERR(priv->mclk)) {
 		dev_err(dev, "failed to get MCLK\n");
 		return -EPROBE_DEFER;
