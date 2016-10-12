@@ -1,0 +1,37 @@
+config SND_SOC_STREAM
+	tristate "Audio support for StreamUnlimited boards designs"
+	help
+	  Audio support for various reference designs by SUE.
+
+choice
+
+prompt "Selected target"
+	default SND_SOC_STREAM_AM33XX
+	depends on SND_SOC_STREAM
+
+config SND_SOC_STREAM_AM33XX
+	tristate "SUE am33xx support"
+	depends on SND_EDMA_SOC
+        select SND_DAVINCI_SOC_MCASP
+        select SND_SOC_CS4271
+        select SND_SOC_AK4104
+        select SND_SOC_AK5386
+        select SND_SOC_TAS5086
+        select SND_SOC_PCM3060
+        select SND_SOC_PCMDUMMY
+        select SND_SOC_ADAU1701
+        select SND_SOC_STA350
+        select SND_SOC_SPDI
+	help
+	  ASoC driver for the Analog Devices AXI-I2S softcore peripheral.
+
+config SND_SOC_STREAM_NXP
+	tristate "SUE imx7 support"
+	depends on SND_SOC_STREAM
+	select SND_SOC_IMX_PCM_DMA
+	select SND_SOC_FSL_SAI
+	select SND_SOC_FSL_UTILS
+	help
+	  ASoC driver for the Analog Devices AXI-SPDIF softcore peripheral.
+
+endchoice
