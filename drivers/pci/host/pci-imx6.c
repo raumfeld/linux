@@ -1004,8 +1004,10 @@ static int pci_imx_suspend_noirq(struct device *dev)
 		/* Power down PCIe PHY. */
 		if (imx6_pcie->pcie_phy_regulator != NULL)
 			regulator_disable(imx6_pcie->pcie_phy_regulator);
+#if 0
 		if (gpio_is_valid(imx6_pcie->power_on_gpio))
 			gpio_set_value_cansleep(imx6_pcie->power_on_gpio, 0);
+#endif
 	} else {
 		/*
 		 * L2 can exit by 'reset' or Inband beacon (from remote EP)
