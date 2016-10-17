@@ -56,8 +56,11 @@
 
 
 //// ADC attenuation
-#define PCM3060_REG_ADC_ATTEN_LEFT 70
-#define PCM3060_REG_ADC_ATTEN_RIGHT 71
+#define PCM3060_REG_ADC_ATTEN_LEFT	70
+#define PCM3060_REG_ADC_ATTEN_RIGHT	71
+
+#define PCM3060_REG_ADC_CLOCK_CONTROL	72
+#	define PCM3060_CSEL1		(1<<7)
 
 #define PCM3060_REG_ADC_CONTROL		73
 
@@ -78,7 +81,7 @@ static struct reg_default pcm3060_reg_defaults[] = {
 	{PCM3060_REG_DAC_DEEMPH, 0},
 	{PCM3060_REG_ADC_ATTEN_LEFT, 215},
 	{PCM3060_REG_ADC_ATTEN_RIGHT, 215},
-	{72, 0}, /* not sure if needed */
+	{PCM3060_REG_ADC_CLOCK_CONTROL, 0},
 	{PCM3060_REG_ADC_CONTROL, 0},
 };
 
@@ -256,6 +259,9 @@ static int pcm3060_probe(struct snd_soc_codec *codec)
 			return ret;
 	} else
 		return 0;
+
+	dev_info(codec->dev, "will set CSEL1 = 1\n");
+	snd_soc_update_bits(codec, PCM3060_REG_ADC_CLOCK_CONTROL, PCM3060_CSEL1, PCM3060_CSEL1);
 
 	/* Unmute the amplifier */
 	pcm3060->amp_reset_gpio = of_get_named_gpio(codec->dev->of_node, "sue,amp-reset-gpio", 0);
