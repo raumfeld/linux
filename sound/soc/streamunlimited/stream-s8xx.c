@@ -594,6 +594,12 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to get MCLK\n");
 		return -EPROBE_DEFER;
 	}
+
+	priv->mclk_rx = devm_clk_get(&pdev->dev, "mclk_rx");
+	if (IS_ERR(priv->mclk_rx)) {
+		dev_err(dev, "failed to get MCLK RX\n");
+		return -EPROBE_DEFER;
+	}
 #ifdef CONFIG_SND_SOC_STREAM_AM33XX
 	/* request pin mux */
 	priv->pinctrl = devm_pinctrl_get(dev);
@@ -617,14 +623,6 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 	ret = pinctrl_select_state(priv->pinctrl, priv->pinctrl_state_pcm);
 	if (ret < 0)
 		dev_warn(dev, "could not select pcm pins\n");
-
-
-
-	priv->mclk_rx = of_clk_get(top_node, 1);
-	if (IS_ERR(priv->mclk_rx)) {
-		dev_err(dev, "failed to get MCLK RX\n");
-		return -EPROBE_DEFER;
-	}
 #endif /* CONFIG_SND_SOC_STREAM_AM33XX */
 
 	priv->regulator = devm_regulator_get(dev, "vd");
