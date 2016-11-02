@@ -69,6 +69,7 @@
 
 #define TAS5086_DEEMPH_MASK		0x03
 #define TAS5086_SOFT_MUTE_ALL		0x3f
+#define TAS5086_SOFT_UNMUTE_ALL		0x00
 
 #define TAS5086_DEV_ID			0x01	/* Device ID register */
 #define TAS5086_ERROR_STATUS		0x02	/* Error status register */
@@ -250,6 +251,7 @@ struct tas5086_private {
 	unsigned int	mclk, sclk;
 	unsigned int	format;
 	bool		deemph;
+	bool 		allmute;
 	unsigned int	charge_period;
 	unsigned int	pwm_start_mid_z;
 	/* Current sample rate for de-emphasis control */
@@ -396,7 +398,7 @@ static int tas5086_hw_params(struct snd_pcm_substream *substream,
 
 	ret = regmap_update_bits(priv->regmap, TAS5086_CLOCK_CONTROL,
 				 TAS5086_CLOCK_SCLK_RATIO_48,
-				 (priv->sclk == 48 * priv->rate) ? 
+				 (priv->sclk == 48 * priv->rate) ?
 					TAS5086_CLOCK_SCLK_RATIO_48 : 0);
 	if (ret < 0)
 		return ret;
@@ -526,12 +528,43 @@ static int tas5086_init(struct device *dev, struct tas5086_private *priv)
 		return ret;
 
 	/* mute all channels for now */
+	priv->allmute = true;
 	ret = regmap_write(priv->regmap, TAS5086_SOFT_MUTE,
 			   TAS5086_SOFT_MUTE_ALL);
 	if (ret < 0)
 		return ret;
 
 	return 0;
+}
+
+
+static int tas5086_get_allmute(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct tas5086_private *priv = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.integer.value[0] = !priv->allmute;
+
+	return 0;
+}
+
+static int tas5086_put_allmute(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct tas5086_private *priv = snd_soc_codec_get_drvdata(codec);
+	int val;
+
+	priv->allmute = !ucontrol->value.integer.value[0];
+
+	if (priv->allmute)
+		val = TAS5086_SOFT_MUTE_ALL;
+	else
+		val = TAS5086_SOFT_UNMUTE_ALL;
+
+	return regmap_update_bits(priv->regmap, TAS5086_SOFT_MUTE,
+			TAS5086_SOFT_MUTE_ALL, val);
 }
 
 /* TAS5086 controls */
@@ -551,12 +584,8 @@ static const struct snd_kcontrol_new tas5086_controls[] = {
 			 0, 0xff, 1, tas5086_dac_tlv),
 	SOC_SINGLE_BOOL_EXT("De-emphasis Switch", 0,
 			    tas5086_get_deemph, tas5086_put_deemph),
-	SOC_SINGLE("Channel1 Mute Switch", TAS5086_SOFT_MUTE, 0, 1, 0),
-	SOC_SINGLE("Channel2 Mute Switch", TAS5086_SOFT_MUTE, 1, 1, 0),
-	SOC_SINGLE("Channel3 Mute Switch", TAS5086_SOFT_MUTE, 2, 1, 0),
-	SOC_SINGLE("Channel4 Mute Switch", TAS5086_SOFT_MUTE, 3, 1, 0),
-	SOC_SINGLE("Channel5 Mute Switch", TAS5086_SOFT_MUTE, 4, 1, 0),
-	SOC_SINGLE("Channel6 Mute Switch", TAS5086_SOFT_MUTE, 5, 1, 0),
+	SOC_SINGLE_BOOL_EXT("Master Playback Switch", 0,
+			tas5086_get_allmute, tas5086_put_allmute),
 };
 
 /* Input mux controls */
