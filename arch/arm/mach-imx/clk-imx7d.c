@@ -879,7 +879,7 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 	clk_data.clk_num = ARRAY_SIZE(clks);
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 
-	clk_register_clkdev(clks[IMX7D_GPT1_ROOT_CLK], "ipg", "imx-gpt.0");
+	clk_register_clkdev(clks[IMX7D_GPT2_ROOT_CLK], "ipg", "imx-gpt.0");
 	clk_register_clkdev(clks[IMX7D_GPT_3M_CLK], "gpt_3m", "imx-gpt.0");
 
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
@@ -897,8 +897,8 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 	imx_clk_set_parent(clks[IMX7D_PLL_AUDIO_MAIN_BYPASS], clks[IMX7D_PLL_AUDIO_MAIN]);
 	imx_clk_set_parent(clks[IMX7D_PLL_VIDEO_MAIN_BYPASS], clks[IMX7D_PLL_VIDEO_MAIN]);
 
-	/* use old gpt clk setting, gpt1 root clk must be twice as gpt counter freq */
-	imx_clk_set_parent(clks[IMX7D_GPT1_ROOT_SRC], clks[IMX7D_OSC_24M_CLK]);
+	/* use old gpt clk setting, gpt2 root clk must be twice as gpt counter freq */
+	imx_clk_set_parent(clks[IMX7D_GPT2_ROOT_SRC], clks[IMX7D_OSC_24M_CLK]);
 
 	/*
 	 * init enet clock source:
