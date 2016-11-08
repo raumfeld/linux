@@ -539,20 +539,20 @@
 				compatible = "fsl,imx7d-gpt", "fsl,imx31-gpt";
 				reg = <0x302d0000 0x10000>;
 				interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX7D_GPT1_ROOT_CLK>,
-					<&clks IMX7D_GPT1_ROOT_CLK>,
-					<&clks IMX7D_GPT_3M_CLK>;
-				clock-names = "ipg", "per", "osc_per";
+				clocks = <&clks IMX7D_CLK_DUMMY>,
+					<&clks IMX7D_GPT1_ROOT_CLK>;
+				clock-names = "ipg", "per";
+				status = "disabled";
 			};
 
 			gpt2: gpt@302e0000 {
 				compatible = "fsl,imx7d-gpt", "fsl,imx31-gpt";
 				reg = <0x302e0000 0x10000>;
 				interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX7D_CLK_DUMMY>,
-					<&clks IMX7D_GPT2_ROOT_CLK>;
-				clock-names = "ipg", "per";
-				status = "disabled";
+				clocks = <&clks IMX7D_GPT2_ROOT_CLK>,
+					<&clks IMX7D_GPT2_ROOT_CLK>,
+					<&clks IMX7D_GPT_3M_CLK>;
+				clock-names = "ipg", "per", "osc_per";
 			};
 
 			gpt3: gpt@302f0000 {
