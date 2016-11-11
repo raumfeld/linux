@@ -138,6 +138,7 @@ struct fsl_sai {
 	bool is_slave_mode;
 	bool is_lsb_first;
 	bool is_dsp_mode;
+	bool is_rx_slave;
 	bool sai_on_imx;
 	bool synchronous[2];
 	bool is_stream_opened[2];

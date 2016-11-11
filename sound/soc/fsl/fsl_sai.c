@@ -291,6 +291,11 @@ static int fsl_sai_set_dai_fmt_tr(struct snd_soc_dai *cpu_dai,
 		return -EINVAL;
 	}
 
+	if (!tx && sai->is_rx_slave) {
+		val_cr2 &= ~FSL_SAI_CR2_BCD_MSTR;
+		val_cr4 &= ~FSL_SAI_CR4_FSD_MSTR;
+	}
+
 	regmap_update_bits(sai->regmap, FSL_SAI_xCR2(tx),
 			   FSL_SAI_CR2_BCP | FSL_SAI_CR2_BCD_MSTR, val_cr2);
 	regmap_update_bits(sai->regmap, FSL_SAI_xCR4(tx),
@@ -414,7 +419,7 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 	u32 slot_width = word_width;
 	int ret;
 
-	if (!sai->is_slave_mode) {
+	if (!sai->is_slave_mode && (!sai->is_rx_slave || tx)) {
 		slot_width = sai->slot_width;
 		ret = fsl_sai_set_bclk(cpu_dai, tx,
 				sai->slots * slot_width * params_rate(params));
@@ -537,8 +542,9 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (tx)
 			udelay(10);
 
-		regmap_update_bits(sai->regmap, FSL_SAI_RCSR,
-				   FSL_SAI_CSR_TERE, FSL_SAI_CSR_TERE);
+		if (!tx)
+			regmap_update_bits(sai->regmap, FSL_SAI_RCSR,
+					FSL_SAI_CSR_TERE, FSL_SAI_CSR_TERE);
 		regmap_update_bits(sai->regmap, FSL_SAI_TCSR,
 				   FSL_SAI_CSR_TERE, FSL_SAI_CSR_TERE);
 
@@ -908,6 +914,11 @@ static int fsl_sai_probe(struct platform_device *pdev)
 		fsl_sai_dai.symmetric_channels = 0;
 		fsl_sai_dai.symmetric_samplebits = 0;
 	}
+
+	if (of_find_property(np, "fsl,sai-is-rx-slave", NULL))
+		sai->is_rx_slave = true;
+	else
+		sai->is_rx_slave = false;
 
 	sai->dma_params_rx.addr = res->start + FSL_SAI_RDR;
 	sai->dma_params_tx.addr = res->start + FSL_SAI_TDR;
