@@ -878,6 +878,9 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 
 	clks[IMX7D_GPT_3M_CLK] = imx_clk_fixed_factor("gpt_3m", "osc", 1, 8);
 
+	/* Enable the clocks for OCOTP */
+	writel_relaxed(readl_relaxed(base + 0x4230) | 1 << 0, base + 0x4230);
+
 	for (i = 0; i < ARRAY_SIZE(clks); i++)
 		if (IS_ERR(clks[i]))
 			pr_err("i.MX7D clk %d: register failed with %ld\n",
