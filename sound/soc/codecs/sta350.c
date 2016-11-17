@@ -810,7 +810,8 @@ static int sta350_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int sta350_startup_sequence(struct sta350_priv *sta350)
+static int sta350_startup_sequence(struct snd_soc_codec *codec,
+				   struct sta350_priv *sta350)
 {
 	if (sta350->gpiod_power_down)
 		gpiod_set_value(sta350->gpiod_power_down, 1);
@@ -823,8 +824,7 @@ static int sta350_startup_sequence(struct sta350_priv *sta350)
 	}
 
 	regcache_mark_dirty(sta350->regmap);
-
-	return 0;
+	return sta350_cache_sync(codec);
 }
 
 /**
@@ -926,7 +926,7 @@ static int sta350_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	ret = sta350_startup_sequence(sta350);
+	ret = sta350_startup_sequence(codec, sta350);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to startup device\n");
 		return ret;
