@@ -83,6 +83,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_PCM512x_I2C if I2C
 	select SND_SOC_PCM512x_SPI if SPI_MASTER
 	select SND_SOC_PCM3060 if I2C
+	select SND_SOC_PCMDUMMY
 	select SND_SOC_RT286 if I2C
 	select SND_SOC_RT5631 if I2C
 	select SND_SOC_RT5640 if I2C
@@ -501,6 +502,9 @@ config SND_SOC_PCM512x_SPI
 config SND_SOC_PCM3060
 	tristate "Texas Instruments PCM3060 CODEC"
 	depends on I2C
+
+config SND_SOC_PCMDUMMY
+	tristate "Dummy CODEC"
 
 config SND_SOC_RL6231
 	tristate
