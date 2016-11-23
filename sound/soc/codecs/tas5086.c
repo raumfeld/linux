@@ -555,6 +555,10 @@ static int tas5086_put_allmute(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct tas5086_private *priv = snd_soc_codec_get_drvdata(codec);
 	int val;
+	int ret;
+
+	if (priv->allmute == !ucontrol->value.integer.value[0])
+		return 0;
 
 	priv->allmute = !ucontrol->value.integer.value[0];
 
@@ -563,8 +567,13 @@ static int tas5086_put_allmute(struct snd_kcontrol *kcontrol,
 	else
 		val = TAS5086_SOFT_UNMUTE_ALL;
 
-	return regmap_update_bits(priv->regmap, TAS5086_SOFT_MUTE,
-			TAS5086_SOFT_MUTE_ALL, val);
+	ret = regmap_update_bits(priv->regmap, TAS5086_SOFT_MUTE,
+				 TAS5086_SOFT_MUTE_ALL, val);
+
+	if (ret < 0)
+		return ret;
+
+	return 1;
 }
 
 /* TAS5086 controls */
