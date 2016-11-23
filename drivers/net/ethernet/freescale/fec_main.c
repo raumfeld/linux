@@ -148,7 +148,8 @@ static const struct of_device_id fec_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, fec_dt_ids);
 
 static unsigned char macaddr[ETH_ALEN];
-module_param_array(macaddr, byte, NULL, 0);
+static char modparam_macaddr[18];
+module_param_string(macaddr, modparam_macaddr, 18, 0);
 MODULE_PARM_DESC(macaddr, "FEC Ethernet MAC address");
 
 #if defined(CONFIG_M5272)
@@ -1712,8 +1713,12 @@ static void fec_get_mac(struct net_device *ndev)
 	 * try to get mac address in following order:
 	 *
 	 * 1) module parameter via kernel command line in form
-	 *    fec.macaddr=0x00,0x04,0x9f,0x01,0x30,0xe0
+	 *    fec.macaddr=00:04:9f:01:30:e0
 	 */
+	if (!mac_pton(modparam_macaddr, macaddr)) {
+		pr_warn("cannot parse mac address\n");
+		eth_zero_addr(macaddr);
+	}
 	iap = macaddr;
 
 	/*
