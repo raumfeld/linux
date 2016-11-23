@@ -585,6 +585,23 @@ static void axp20x_power_off(void)
 	if (axp20x_pm_power_off->variant == AXP288_ID)
 		return;
 
+	/*
+	 * This is not the nicest way to do it, but on the stream810 module
+	 * we want to turn off the LDO0 and ALDO2 when we power off the
+	 * device.
+	 *
+	 * The proper way would be to configure the rails to be turned off
+	 * in the devicetree, but this would not be worth the effort, so
+	 * we just turn those rails off if we have an AXP152.
+	 */
+	if (axp20x_pm_power_off->variant == AXP152_ID) {
+		dev_info(axp20x_pm_power_off->dev, "turning off LDO0\n");
+		regmap_update_bits(axp20x_pm_power_off->regmap, AXP152_LDO0_CTRL, (1 << 7), 0);
+
+		dev_info(axp20x_pm_power_off->dev, "turning off ALDO2\n");
+		regmap_update_bits(axp20x_pm_power_off->regmap, AXP20X_PWR_OUT_CTRL, (1 << 2), 0);
+	}
+
 	regmap_write(axp20x_pm_power_off->regmap, AXP20X_OFF_CTRL,
 		     AXP20X_OFF);
 }
