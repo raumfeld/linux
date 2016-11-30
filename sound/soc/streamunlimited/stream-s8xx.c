@@ -645,6 +645,11 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 	priv->card.dev = dev;
 	snd_soc_of_parse_card_name(&priv->card, "sue,card-name");
 
+	ret = snd_soc_of_parse_audio_routing(&priv->card, "sue,audio-routing");
+	if (ret) {
+		dev_warn(&pdev->dev, "failed to parse audio-routing: %d\n", ret);
+	}
+
 	node = of_get_child_by_name(top_node, "links");
 	if (node) {
 		struct device_node *child;
