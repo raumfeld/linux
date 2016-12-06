@@ -2554,7 +2554,8 @@ static int mwifiex_pcie_request_irq(struct mwifiex_adapter *adapter)
 	struct pcie_service_card *card = adapter->card;
 	struct pci_dev *pdev = card->dev;
 
-	if (pci_enable_msi(pdev) != 0)
+	ret = pci_enable_msi(pdev);
+	if (ret != 0)
 		pci_disable_msi(pdev);
 	else
 		card->msi_enable = 1;
@@ -2610,6 +2611,7 @@ static void mwifiex_unregister_dev(struct mwifiex_adapter *adapter)
 	if (card) {
 		dev_dbg(adapter->dev, "%s(): calling free_irq()\n", __func__);
 		free_irq(card->dev->irq, card->dev);
+		pci_disable_msi(card->dev);
 
 		reg = card->pcie.reg;
 		if (reg->sleep_cookie)
@@ -2621,6 +2623,7 @@ static void mwifiex_unregister_dev(struct mwifiex_adapter *adapter)
 		mwifiex_pcie_delete_txbd_ring(adapter);
 		card->cmdrsp_buf = NULL;
 	}
+
 }
 
 static struct mwifiex_if_ops pcie_ops = {
