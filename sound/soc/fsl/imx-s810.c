@@ -207,10 +207,10 @@ static int imx_s810_common_hw_params(struct snd_pcm_substream *substream,
 
 	if (priv->mclk_rate) {
 		if (priv->mclk_rate % base_48000_clks == 0)
-			mclk = (rate % 16000 == 0) ? priv->mclk_rate :
+			mclk = (rate % 8000 == 0) ? priv->mclk_rate :
 				priv->mclk_rate / 48000 * 44100;
 		else if (priv->mclk_rate % base_44100_clks == 0)
-			mclk = (rate % 16000 != 0) ? priv->mclk_rate :
+			mclk = (rate % 8000 != 0) ? priv->mclk_rate :
 				priv->mclk_rate / 44100 * 48000;
 	}
 
