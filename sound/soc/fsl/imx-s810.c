@@ -1,5 +1,5 @@
 /*
- * ASoC driver for StreamUnlimited S810/Raumfeld i.MX based audio devices
+ * ASoC driver for StreamUnlimited S810/Teufel i.MX based audio devices
  *
  *  (c) 2013 Daniel Mack <daniel@zonque.org>
  *
@@ -745,6 +745,6 @@ static struct platform_driver snd_soc_imx_s810_driver = {
 module_platform_driver(snd_soc_imx_s810_driver);
 
 MODULE_AUTHOR("Daniel Mack <daniel@zonque.org>");
-MODULE_DESCRIPTION("Stream Unlimited S810 / Raumfeld ASoC Interface");
+MODULE_DESCRIPTION("Stream Unlimited S810 / Teufel ASoC Interface");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:snd-soc-imx-s810");
