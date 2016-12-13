@@ -276,6 +276,7 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 	cpufreq_device->clipped_freq = clip_freq;
 
 	cpufreq_update_policy(cpu);
+	dev_info(&cdev->device, "setting cpu frequency to %u\n", clip_freq);
 
 	return 0;
 }
