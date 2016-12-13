@@ -93,7 +93,7 @@ enum imx_thermal_trip {
  * that will trigger cooling action when crossed.
  */
 #define IMX_TEMP_PASSIVE		85000
-#define IMX_TEMP_PASSIVE_COOL_DELTA	10000
+#define IMX_TEMP_PASSIVE_COOL_DELTA	2000
 
 #define IMX_POLLING_DELAY		2000 /* millisecond */
 #define IMX_PASSIVE_DELAY		1000
