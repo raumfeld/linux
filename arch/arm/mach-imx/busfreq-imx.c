@@ -578,11 +578,11 @@ static void reduce_bus_freq(void)
 		clk_disable_unprepare(pll3_clk);
 
 	if (audio_bus_freq_mode)
-		dev_dbg(busfreq_dev,
+		dev_info(busfreq_dev,
 			"Bus freq set to audio mode. Count: high %d, med %d, audio %d\n",
 			high_bus_count, med_bus_count, audio_bus_count);
 	if (low_bus_freq_mode)
-		dev_dbg(busfreq_dev,
+		dev_info(busfreq_dev,
 			"Bus freq set to low mode. Count: high %d, med %d, audio %d\n",
 			high_bus_count, med_bus_count, audio_bus_count);
 }
@@ -674,11 +674,11 @@ static int set_high_bus_freq(int high_bus_freq)
 		clk_disable_unprepare(pll3_clk);
 
 	if (high_bus_freq_mode)
-		dev_dbg(busfreq_dev,
+		dev_info(busfreq_dev,
 			"Bus freq set to high mode. Count: high %d, med %d, audio %d\n",
 			high_bus_count, med_bus_count, audio_bus_count);
 	if (med_bus_freq_mode)
-		dev_dbg(busfreq_dev,
+		dev_info(busfreq_dev,
 			"Bus freq set to med mode. Count: high %d, med %d, audio %d\n",
 			high_bus_count, med_bus_count, audio_bus_count);
 
