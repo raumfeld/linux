@@ -908,7 +908,7 @@ static ssize_t bus_freq_scaling_enable_store(struct device *dev,
 		 * there is no high bus request pending
 		 */
 		schedule_delayed_work(&bus_freq_daemon,
-			usecs_to_jiffies(5000000));
+			msecs_to_jiffies(1000));
 	} else if (strncmp(buf, "0", 1) == 0) {
 		if (bus_freq_scaling_is_active)
 			set_high_bus_freq(1);
@@ -1130,7 +1130,7 @@ static int busfreq_probe(struct platform_device *pdev)
 
 	/* enter low bus mode if no high speed device enabled */
 	schedule_delayed_work(&bus_freq_daemon,
-		msecs_to_jiffies(10000));
+		msecs_to_jiffies(5000));
 
 	/*
 	 * Need to make sure to an entry for the ddr freq change code
