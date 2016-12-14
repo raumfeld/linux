@@ -878,10 +878,26 @@ void __init imx_busfreq_map_io(void)
 static void bus_freq_daemon_handler(struct work_struct *work)
 {
 	mutex_lock(&bus_freq_mutex);
-	if ((!low_bus_freq_mode) && (!ultra_low_bus_freq_mode)
-		&& (high_bus_count == 0) &&
-		(med_bus_count == 0) && (audio_bus_count == 0))
+
+	/*
+	 * This logic is take from the release_bus_freq() function,
+	 * it seems overly complicated and convoluted, but at least
+	 * it works.
+	 */
+	if ((!audio_bus_freq_mode) && (high_bus_count == 0) &&
+		(med_bus_count == 0) && (audio_bus_count != 0))
 		set_low_bus_freq();
+
+	if ((!low_bus_freq_mode) && (high_bus_count == 0) &&
+		(med_bus_count == 0) && (audio_bus_count == 0) &&
+		(low_bus_count != 0))
+		set_low_bus_freq();
+
+	if ((!ultra_low_bus_freq_mode) && (high_bus_count == 0) &&
+		(med_bus_count == 0) && (audio_bus_count == 0) &&
+		(low_bus_count == 0))
+		set_low_bus_freq();
+
 	mutex_unlock(&bus_freq_mutex);
 }
 
@@ -914,6 +930,7 @@ static ssize_t bus_freq_scaling_enable_store(struct device *dev,
 			set_high_bus_freq(1);
 		bus_freq_scaling_is_active = 0;
 	}
+
 	return size;
 }
 
