@@ -3798,13 +3798,13 @@ failed_clk:
 
 static int fec_runtime_suspend(struct device *dev)
 {
-	release_bus_freq(BUS_FREQ_HIGH);
+	release_bus_freq(BUS_FREQ_AUDIO);
 	return 0;
 }
 
 static int fec_runtime_resume(struct device *dev)
 {
-	request_bus_freq(BUS_FREQ_HIGH);
+	request_bus_freq(BUS_FREQ_AUDIO);
 	return 0;
 }
 
