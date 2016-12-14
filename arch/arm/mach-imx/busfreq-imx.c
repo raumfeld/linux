@@ -1193,6 +1193,11 @@ static int busfreq_probe(struct platform_device *pdev)
 		dev_err(busfreq_dev, "Busfreq init of ddr controller failed\n");
 		return err;
 	}
+
+	/* Disable it per default */
+	set_high_bus_freq(1);
+	bus_freq_scaling_is_active = 0;
+
 	return 0;
 }
 
