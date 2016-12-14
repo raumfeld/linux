@@ -500,7 +500,7 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	request_bus_freq(BUS_FREQ_HIGH);
+	request_bus_freq(BUS_FREQ_AUDIO);
 	ret = imx_prepare_enable_clks(&pdev->dev);
 	if (ret)
 		goto err_bus_freq;
@@ -629,7 +629,7 @@ disable_hsic_regulator:
 err_clk:
 	imx_disable_unprepare_clks(&pdev->dev);
 err_bus_freq:
-	release_bus_freq(BUS_FREQ_HIGH);
+	release_bus_freq(BUS_FREQ_AUDIO);
 	return ret;
 }
 
@@ -644,7 +644,7 @@ static int ci_hdrc_imx_remove(struct platform_device *pdev)
 	}
 	ci_hdrc_remove_device(data->ci_pdev);
 	imx_disable_unprepare_clks(&pdev->dev);
-	release_bus_freq(BUS_FREQ_HIGH);
+	release_bus_freq(BUS_FREQ_AUDIO);
 	if (data->hsic_pad_regulator)
 		regulator_disable(data->hsic_pad_regulator);
 
@@ -671,7 +671,7 @@ static int imx_controller_suspend(struct device *dev)
 	/* Do not disable the clocks for suspend, because we need it to detect an overcurrent condition */
 	/* imx_disable_unprepare_clks(dev); */
 
-	release_bus_freq(BUS_FREQ_HIGH);
+	release_bus_freq(BUS_FREQ_AUDIO);
 	data->in_lpm = true;
 
 	return 0;
@@ -689,7 +689,7 @@ static int imx_controller_resume(struct device *dev)
 		return 0;
 	}
 
-	request_bus_freq(BUS_FREQ_HIGH);
+	request_bus_freq(BUS_FREQ_AUDIO);
 	ret = imx_prepare_enable_clks(dev);
 	if (ret)
 		return ret;
