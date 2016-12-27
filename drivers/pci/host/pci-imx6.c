@@ -340,7 +340,7 @@ static int imx6_pcie_deassert_core_reset(struct pcie_port *pp)
 	if (gpio_is_valid(imx6_pcie->power_on_gpio))
 		gpio_set_value_cansleep(imx6_pcie->power_on_gpio, 1);
 
-	request_bus_freq(BUS_FREQ_HIGH);
+	request_bus_freq(BUS_FREQ_AUDIO);
 	ret = clk_prepare_enable(imx6_pcie->pcie_phy);
 	if (ret) {
 		dev_err(pp->dev, "unable to enable pcie_phy clock\n");
@@ -520,7 +520,7 @@ static int imx6_pcie_wait_for_link(struct pcie_port *pp)
 			clk_disable_unprepare(imx6_pcie->pcie_phy);
 			if (is_imx6sx_pcie(imx6_pcie))
 				clk_disable_unprepare(imx6_pcie->pcie_inbound_axi);
-			release_bus_freq(BUS_FREQ_HIGH);
+			release_bus_freq(BUS_FREQ_AUDIO);
 			if (imx6_pcie->pcie_phy_regulator != NULL)
 				regulator_disable(imx6_pcie->pcie_phy_regulator);
 		}
@@ -999,7 +999,7 @@ static int pci_imx_suspend_noirq(struct device *dev)
 					IMX6Q_GPR1_PCIE_TEST_PD,
 					IMX6Q_GPR1_PCIE_TEST_PD);
 		}
-		release_bus_freq(BUS_FREQ_HIGH);
+		release_bus_freq(BUS_FREQ_AUDIO);
 
 		/* Power down PCIe PHY. */
 		if (imx6_pcie->pcie_phy_regulator != NULL)
