@@ -492,7 +492,8 @@ static int fsl_sai_hw_free(struct snd_pcm_substream *substream,
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 
 	if (!sai->is_slave_mode &&
-			sai->mclk_streams & BIT(substream->stream)) {
+			sai->mclk_streams & BIT(substream->stream) &&
+			!sai->persistent_clocks) {
 		clk_disable_unprepare(sai->mclk_clk[sai->mclk_id[tx]]);
 		sai->mclk_streams &= ~BIT(substream->stream);
 	}
@@ -555,29 +556,34 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 		/* Check if the opposite FRDE is also disabled */
 		regmap_read(sai->regmap, FSL_SAI_xCSR(!tx), &xcsr);
 		if (!(xcsr & FSL_SAI_CSR_FRDE)) {
-			/* Disable both directions and reset their FIFOs */
-			regmap_update_bits(sai->regmap, FSL_SAI_TCSR,
-					   FSL_SAI_CSR_TERE, 0);
-			regmap_update_bits(sai->regmap, FSL_SAI_RCSR,
-					   FSL_SAI_CSR_TERE, 0);
+			if (!sai->persistent_clocks) {
+				/* Disable both directions */
+				regmap_update_bits(sai->regmap, FSL_SAI_TCSR,
+						   FSL_SAI_CSR_TERE, 0);
+				regmap_update_bits(sai->regmap, FSL_SAI_RCSR,
+						   FSL_SAI_CSR_TERE, 0);
 
-			/* TERE will remain set till the end of current frame */
-			do {
-				udelay(10);
-				regmap_read(sai->regmap, FSL_SAI_xCSR(tx), &xcsr);
-			} while (--count && xcsr & FSL_SAI_CSR_TERE);
+				/* TERE will remain set till the end of current frame */
+				do {
+					udelay(10);
+					regmap_read(sai->regmap, FSL_SAI_xCSR(tx), &xcsr);
+				} while (--count && xcsr & FSL_SAI_CSR_TERE);
+			}
 
+			/* reset FIFOs */
 			regmap_update_bits(sai->regmap, FSL_SAI_TCSR,
 					   FSL_SAI_CSR_FR, FSL_SAI_CSR_FR);
 			regmap_update_bits(sai->regmap, FSL_SAI_RCSR,
 					   FSL_SAI_CSR_FR, FSL_SAI_CSR_FR);
 
-			/* Software Reset for both Tx and Rx */
-			regmap_write(sai->regmap, FSL_SAI_TCSR, FSL_SAI_CSR_SR);
-			regmap_write(sai->regmap, FSL_SAI_RCSR, FSL_SAI_CSR_SR);
-			/* Clear SR bit to finish the reset */
-			regmap_write(sai->regmap, FSL_SAI_TCSR, 0);
-			regmap_write(sai->regmap, FSL_SAI_RCSR, 0);
+			if (!sai->persistent_clocks) {
+				/* Software Reset for both Tx and Rx */
+				regmap_write(sai->regmap, FSL_SAI_TCSR, FSL_SAI_CSR_SR);
+				regmap_write(sai->regmap, FSL_SAI_RCSR, FSL_SAI_CSR_SR);
+				/* Clear SR bit to finish the reset */
+				regmap_write(sai->regmap, FSL_SAI_TCSR, 0);
+				regmap_write(sai->regmap, FSL_SAI_RCSR, 0);
+			}
 		}
 		break;
 	default:
@@ -602,10 +608,13 @@ static int fsl_sai_startup(struct snd_pcm_substream *substream,
 
 	pm_runtime_get_sync(cpu_dai->dev);
 
-	ret = clk_prepare_enable(sai->bus_clk);
-	if (ret) {
-		dev_err(dev, "failed to enable bus clock: %d\n", ret);
-		return ret;
+	if (!sai->persistent_clocks) {
+		ret = clk_prepare_enable(sai->bus_clk);
+
+		if (ret) {
+			dev_err(dev, "failed to enable bus clock: %d\n", ret);
+			return ret;
+		}
 	}
 
 	regmap_update_bits(sai->regmap, FSL_SAI_xCR3(tx), FSL_SAI_CR3_TRCE,
@@ -625,7 +634,10 @@ static void fsl_sai_shutdown(struct snd_pcm_substream *substream,
 
 	if (sai->is_stream_opened[tx]) {
 		regmap_update_bits(sai->regmap, FSL_SAI_xCR3(tx), FSL_SAI_CR3_TRCE, 0);
-		clk_disable_unprepare(sai->bus_clk);
+
+		if (!sai->persistent_clocks)
+			clk_disable_unprepare(sai->bus_clk);
+
 		sai->is_stream_opened[tx] = false;
 		pm_runtime_put_sync(cpu_dai->dev);
 	}
@@ -808,6 +820,8 @@ static int fsl_sai_probe(struct platform_device *pdev)
 
 	sai->is_lsb_first = of_property_read_bool(np, "lsb-first");
 
+	sai->persistent_clocks = of_property_read_bool(np, "sue,persistent-clocks");
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base))
@@ -831,6 +845,15 @@ static int fsl_sai_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get bus clock: %ld\n",
 				PTR_ERR(sai->bus_clk));
 		sai->bus_clk = NULL;
+	} else {
+		if (sai->persistent_clocks) {
+			ret = clk_prepare_enable(sai->bus_clk);
+
+			if (ret) {
+				dev_err(&pdev->dev, "failed to enable bus clock: %d\n", ret);
+				return ret;
+			}
+		}
 	}
 
 	sai->mclk_clk[0] = sai->bus_clk;
