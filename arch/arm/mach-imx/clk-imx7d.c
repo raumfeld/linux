@@ -657,9 +657,12 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 	clks[IMX7D_MIPI_DSI_ROOT_PRE_DIV] = imx_clk_divider2("mipi_dsi_pre_div", "mipi_dsi_cg", base + 0xa380, 16, 3);
 	clks[IMX7D_MIPI_CSI_ROOT_PRE_DIV] = imx_clk_divider2("mipi_csi_pre_div", "mipi_csi_cg", base + 0xa400, 16, 3);
 	clks[IMX7D_MIPI_DPHY_ROOT_PRE_DIV] = imx_clk_divider2("mipi_dphy_pre_div", "mipi_dphy_cg", base + 0xa480, 16, 3);
-	clks[IMX7D_SAI1_ROOT_PRE_DIV] = imx_clk_divider2("sai1_pre_div", "sai1_cg", base + 0xa500, 16, 3);
-	clks[IMX7D_SAI2_ROOT_PRE_DIV] = imx_clk_divider2("sai2_pre_div", "sai2_cg", base + 0xa580, 16, 3);
-	clks[IMX7D_SAI3_ROOT_PRE_DIV] = imx_clk_divider2("sai3_pre_div", "sai3_cg", base + 0xa600, 16, 3);
+	clks[IMX7D_SAI1_ROOT_PRE_DIV] = imx_clk_divider_flags2("sai1_pre_div", "sai1_cg", base + 0xa500, 16, 3,
+								CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE | CLK_SET_PARENT_ON, CLK_DIVIDER_LAZY_WRITE);
+	clks[IMX7D_SAI2_ROOT_PRE_DIV] = imx_clk_divider_flags2("sai2_pre_div", "sai2_cg", base + 0xa580, 16, 3,
+								CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE | CLK_SET_PARENT_ON, CLK_DIVIDER_LAZY_WRITE);
+	clks[IMX7D_SAI3_ROOT_PRE_DIV] = imx_clk_divider_flags2("sai3_pre_div", "sai3_cg", base + 0xa600, 16, 3,
+								CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE | CLK_SET_PARENT_ON, CLK_DIVIDER_LAZY_WRITE);
 	clks[IMX7D_SPDIF_ROOT_PRE_DIV] = imx_clk_divider2("spdif_pre_div", "spdif_cg", base + 0xa680, 16, 3);
 	clks[IMX7D_ENET1_REF_ROOT_PRE_DIV] = imx_clk_divider2("enet1_ref_pre_div", "enet1_ref_cg", base + 0xa700, 16, 3);
 	clks[IMX7D_ENET1_TIME_ROOT_PRE_DIV] = imx_clk_divider2("enet1_time_pre_div", "enet1_time_cg", base + 0xa780, 16, 3);
@@ -704,7 +707,8 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 	clks[IMX7D_TRACE_ROOT_PRE_DIV] = imx_clk_divider2("trace_pre_div", "trace_cg", base + 0xbb00, 16, 3);
 	clks[IMX7D_WDOG_ROOT_PRE_DIV] = imx_clk_divider2("wdog_pre_div", "wdog_cg", base + 0xbb80, 16, 3);
 	clks[IMX7D_CSI_MCLK_ROOT_PRE_DIV] = imx_clk_divider2("csi_mclk_pre_div", "csi_mclk_cg", base + 0xbc00, 16, 3);
-	clks[IMX7D_AUDIO_MCLK_ROOT_PRE_DIV] = imx_clk_divider2("audio_mclk_pre_div", "audio_mclk_cg", base + 0xbc80, 16, 3);
+	clks[IMX7D_AUDIO_MCLK_ROOT_PRE_DIV] = imx_clk_divider_flags2("audio_mclk_pre_div", "audio_mclk_cg", base + 0xbc80, 16, 3,
+									CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE | CLK_SET_PARENT_ON, CLK_DIVIDER_LAZY_WRITE);
 	clks[IMX7D_WRCLK_ROOT_PRE_DIV] = imx_clk_divider2("wrclk_pre_div", "wrclk_cg", base + 0xbd00, 16, 3);
 	clks[IMX7D_CLKO1_ROOT_PRE_DIV] = imx_clk_divider2("clko1_pre_div", "clko1_cg", base + 0xbd80, 16, 3);
 	clks[IMX7D_CLKO2_ROOT_PRE_DIV] = imx_clk_divider2("clko2_pre_div", "clko2_cg", base + 0xbe00, 16, 3);
@@ -728,9 +732,12 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 	clks[IMX7D_MIPI_DSI_ROOT_DIV] = imx_clk_divider2("mipi_dsi_post_div", "mipi_dsi_pre_div", base + 0xa380, 0, 6);
 	clks[IMX7D_MIPI_CSI_ROOT_DIV] = imx_clk_divider2("mipi_csi_post_div", "mipi_csi_pre_div", base + 0xa400, 0, 6);
 	clks[IMX7D_MIPI_DPHY_ROOT_DIV] = imx_clk_divider2("mipi_dphy_post_div", "mipi_dphy_pre_div", base + 0xa480, 0, 6);
-	clks[IMX7D_SAI1_ROOT_DIV] = imx_clk_divider2("sai1_post_div", "sai1_pre_div", base + 0xa500, 0, 6);
-	clks[IMX7D_SAI2_ROOT_DIV] = imx_clk_divider2("sai2_post_div", "sai2_pre_div", base + 0xa580, 0, 6);
-	clks[IMX7D_SAI3_ROOT_DIV] = imx_clk_divider2("sai3_post_div", "sai3_pre_div", base + 0xa600, 0, 6);
+	clks[IMX7D_SAI1_ROOT_DIV] = imx_clk_divider_flags2("sai1_post_div", "sai1_pre_div", base + 0xa500, 0, 6,
+								CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE | CLK_SET_PARENT_ON, CLK_DIVIDER_LAZY_WRITE);
+	clks[IMX7D_SAI2_ROOT_DIV] = imx_clk_divider_flags2("sai2_post_div", "sai2_pre_div", base + 0xa580, 0, 6,
+								CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE | CLK_SET_PARENT_ON, CLK_DIVIDER_LAZY_WRITE);
+	clks[IMX7D_SAI3_ROOT_DIV] = imx_clk_divider_flags2("sai3_post_div", "sai3_pre_div", base + 0xa600, 0, 6,
+								CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE | CLK_SET_PARENT_ON, CLK_DIVIDER_LAZY_WRITE);
 	clks[IMX7D_SPDIF_ROOT_DIV] = imx_clk_divider2("spdif_post_div", "spdif_pre_div", base + 0xa680, 0, 6);
 	clks[IMX7D_ENET1_REF_ROOT_DIV] = imx_clk_divider2("enet1_ref_post_div", "enet1_ref_pre_div", base + 0xa700, 0, 6);
 	clks[IMX7D_ENET1_TIME_ROOT_DIV] = imx_clk_divider2("enet1_time_post_div", "enet1_time_pre_div", base + 0xa780, 0, 6);
@@ -775,7 +782,8 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 	clks[IMX7D_TRACE_ROOT_DIV] = imx_clk_divider2("trace_post_div", "trace_pre_div", base + 0xbb00, 0, 6);
 	clks[IMX7D_WDOG_ROOT_DIV] = imx_clk_divider2("wdog_post_div", "wdog_pre_div", base + 0xbb80, 0, 6);
 	clks[IMX7D_CSI_MCLK_ROOT_DIV] = imx_clk_divider2("csi_mclk_post_div", "csi_mclk_pre_div", base + 0xbc00, 0, 6);
-	clks[IMX7D_AUDIO_MCLK_ROOT_DIV] = imx_clk_divider2("audio_mclk_post_div", "audio_mclk_pre_div", base + 0xbc80, 0, 6);
+	clks[IMX7D_AUDIO_MCLK_ROOT_DIV] = imx_clk_divider_flags2("audio_mclk_post_div", "audio_mclk_pre_div", base + 0xbc80, 0, 6,
+									CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE | CLK_SET_PARENT_ON, CLK_DIVIDER_LAZY_WRITE);
 	clks[IMX7D_WRCLK_ROOT_DIV] = imx_clk_divider2("wrclk_post_div", "wrclk_pre_div", base + 0xbd00, 0, 6);
 	clks[IMX7D_CLKO1_ROOT_DIV] = imx_clk_divider2("clko1_post_div", "clko1_pre_div", base + 0xbd80, 0, 6);
 	clks[IMX7D_CLKO2_ROOT_DIV] = imx_clk_divider2("clko2_post_div", "clko2_pre_div", base + 0xbe00, 0, 6);
