@@ -397,7 +397,16 @@ static int clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 		val &= ~(div_mask(divider->width) << divider->shift);
 	}
 	val |= value << divider->shift;
-	clk_writel(val, divider->reg);
+
+
+	/*
+	 * If CLK_DIVIDER_LAZY_WRITE is set this condition will check if the current value
+	 * in the register is the same or not. Otherwise if the bit is not set we will just
+	 * write the register.
+	 */
+	if (!(divider->flags & CLK_DIVIDER_LAZY_WRITE) || val != clk_readl(divider->reg)) {
+		clk_writel(val, divider->reg);
+	}
 
 	if (divider->lock)
 		spin_unlock_irqrestore(divider->lock, flags);
