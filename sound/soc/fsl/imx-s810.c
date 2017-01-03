@@ -534,28 +534,22 @@ static int snd_soc_imx_s810_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
+
+	if (of_property_read_u32(top_node, "mclk_rate", &priv->mclk_rate)) {
+		dev_err(dev, "Invalid value for mclk_rate in device tree!\n");
+		return -EINVAL;
+	}
+
 	// TODO: Maybe disable MCLK again if snd_soc_register_card() fails?
 	if (of_get_property(top_node, "sue,early-mclk", NULL)) {
+		u32 pllrate = IMX7D_SAI_PLL_48k;
 		dev_info(dev, "enabling early MCLK\n");
 
-		if (of_property_read_u32(top_node, "mclk_rate", &priv->mclk_rate)) {
-			printk("%s: Invalid value for mclk_rate in device tree, setting it default for 48K\n", __func__);
-			priv->mclk_rate = MCLK_48k;
-		} else {
-			printk("%s: Setting mclk to %i Hz\n", __func__, priv->mclk_rate);
-		}
-
+		clk_set_rate(priv->pllclk, pllrate);
 		priv->mclk_rate_current = priv->mclk_rate;
 		imx_s810_set_mclk(priv, SNDRV_PCM_STREAM_PLAYBACK);
-	} else {
-
-		/* get desired master clock from dt, this is desired due to emc  */
-		if (of_property_read_u32(top_node, "mclk_rate", &priv->mclk_rate)) {
-			printk("%s: Invalid value for mclk_rate in device tree!\n", __func__);
-			return 0;
-		}
-		printk("%s: Setting mclk to %i Hz\n", __func__, priv->mclk_rate);
 	}
+
 	priv->cb_reset_gpio = of_get_named_gpio(top_node, "sue,cb-reset-gpio", 0);
 	if (gpio_is_valid(priv->cb_reset_gpio)) {
 		ret = devm_gpio_request_one(dev, priv->cb_reset_gpio, GPIOF_OUT_INIT_LOW, "Carrier board reset GPIO");
