@@ -461,6 +461,9 @@ static int tas5086_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 	struct tas5086_private *priv = snd_soc_codec_get_drvdata(codec);
 	unsigned int val = 0;
 
+	if (priv->allmute)
+		return 0;
+
 	if (mute)
 		val = TAS5086_SOFT_MUTE_ALL;
 
