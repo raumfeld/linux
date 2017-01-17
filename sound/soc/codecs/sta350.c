@@ -865,7 +865,7 @@ static int sta350_set_bias_level(struct snd_soc_codec *codec,
 					ret);
 				return ret;
 			}
-			sta350_startup_sequence(sta350);
+			sta350_startup_sequence(codec, sta350);
 			sta350_cache_sync(codec);
 		}
 
