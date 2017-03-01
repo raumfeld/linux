@@ -2068,6 +2068,15 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 		if (ret)
 			return -1;
 
+		if (priv->bss_type == MWIFIEX_BSS_TYPE_STA) {
+			/* set ibss coalescing_status */
+			ret = mwifiex_send_cmd(priv, HostCmd_CMD_802_11_IBSS_COALESCING_STATUS,
+						HostCmd_ACT_GEN_SET, 0, &enable, true);
+			if (ret)
+				return -1;
+		}
+
+
 		memset(&amsdu_aggr_ctrl, 0, sizeof(amsdu_aggr_ctrl));
 		amsdu_aggr_ctrl.enable = true;
 		/* Send request to firmware */
