@@ -893,9 +893,12 @@ static void sdma_get_pc(struct sdma_channel *sdmac,
 		break;
 	case IMX_DMATYPE_EXT:
 	case IMX_DMATYPE_SSI:
-	case IMX_DMATYPE_SAI:
 		per_2_emi = sdma->script_addrs->app_2_mcu_addr;
 		emi_2_per = sdma->script_addrs->mcu_2_app_addr;
+		break;
+	case IMX_DMATYPE_SAI:
+		per_2_emi = sdma->script_addrs->app_2_mcu_addr;
+		emi_2_per = sdma->script_addrs->mcu_2_app_upcount_addr;
 		break;
 	case IMX_DMATYPE_SSI_DUAL:
 		per_2_emi = sdma->script_addrs->ssish_2_mcu_addr;
@@ -1798,8 +1801,12 @@ static enum dma_status sdma_tx_status(struct dma_chan *chan,
 	desc = to_sdma_desc(&vd->tx);
 	if (vd) {
 		if ((sdmac->flags & IMX_DMA_SG_LOOP)) {
+			struct sdma_buffer_descriptor *bd;
+
+			bd = &desc->bd[desc->buf_tail];
 			if (sdmac->peripheral_type != IMX_DMATYPE_UART)
-				residue = (desc->num_bd - desc->buf_tail) * sdmac->period_len;
+				residue = (desc->num_bd - desc->buf_tail) *
+					sdmac->period_len + bd->mode.count;
 			else
 				residue = desc->des_count - desc->des_real_count;
 		} else
@@ -1855,7 +1862,7 @@ static void sdma_issue_pending(struct dma_chan *chan)
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1	34
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V2	38
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V3	41
-#define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V4	42
+#define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V4	43
 
 static void sdma_add_scripts(struct sdma_engine *sdma,
 		const struct sdma_script_start_addrs *addr)
