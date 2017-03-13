@@ -1805,7 +1805,7 @@ static enum dma_status sdma_tx_status(struct dma_chan *chan,
 
 			bd = &desc->bd[desc->buf_tail];
 			if (sdmac->peripheral_type != IMX_DMATYPE_UART)
-				residue = (desc->num_bd - desc->buf_tail) *
+				residue = ((desc->num_bd - 1) - desc->buf_tail) *
 					sdmac->period_len + bd->mode.count;
 			else
 				residue = desc->des_count - desc->des_real_count;
