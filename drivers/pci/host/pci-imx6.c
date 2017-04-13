@@ -317,19 +317,22 @@ static int imx6_pcie_assert_core_reset(struct pcie_port *pp)
 	return 0;
 }
 
-static void pci_imx_phy_pll_locked(struct imx6_pcie *imx6_pcie)
+static int pci_imx_phy_pll_locked(struct imx6_pcie *imx6_pcie)
 {
 	u32 val;
 	int count = 20000;
 
 	while (count--) {
 		regmap_read(imx6_pcie->iomuxc_gpr, IOMUXC_GPR22, &val);
-		if (val & BIT(31))
+		if (val & BIT(31)) {
+			return 1;
 			break;
+		}
 		udelay(10);
-		if (count == 0)
-			pr_info("pcie phy pll can't be locked.\n");
 	}
+
+	pr_info("pcie phy pll can't be locked.\n");
+	return 0;
 }
 
 static int imx6_pcie_deassert_core_reset(struct pcie_port *pp)
