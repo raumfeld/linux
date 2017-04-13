@@ -396,14 +396,76 @@ static int imx6_pcie_deassert_core_reset(struct pcie_port *pp)
 	 * Release the PCIe PHY reset here
 	 */
 	if (is_imx7d_pcie(imx6_pcie)) {
+		int retry_count = 10;
+		void __iomem *magic_reg = ioremap(0x306d0054, SZ_4K);
+
 		/* wait for more than 10us to release phy g_rst and btnrst */
 		udelay(10);
-		regmap_update_bits(imx6_pcie->reg_src, 0x2c, BIT(6), 0);
-		regmap_update_bits(imx6_pcie->reg_src, 0x2c, BIT(1), 0);
-		regmap_update_bits(imx6_pcie->reg_src, 0x2c, BIT(2), 0);
 
-		/* wait for phy pll lock firstly. */
-		pci_imx_phy_pll_locked(imx6_pcie);
+		/* For the locking set the regulator to 1.1V */
+		regulator_set_voltage(imx6_pcie->pcie_phy_regulator, 1100000, 1100000);
+
+		regmap_update_bits(imx6_pcie->reg_src, 0x2c, BIT(6), 0);
+
+		/*
+		 * This is from NXP:
+		 *
+		 * To toggle internal PLL_PD signal to make VCO oscillate after G_RST signal is de-asserted by following the sequences:
+		 *	1) De-asserted G_RST signal by clearing bit[1] (PCIEPHY_G_RST) of SRC_PCIEPHY_RCR register.
+		 *
+		 *	2) Toggle internal PLL_PD signal by writing data “0x04”, “0xA4”, “0x04” to the register address “0x306D_0054” in sequence.
+		 *		The description about the register “0x306D_0054” is as follows:
+		 *		Register Address	Field	Field Name	Description
+		 *		0x306D_0054		[5]	PLL_PD		Power-down of PLL (valid only when OVRD_PLL_PD = 1)
+		 *					[7]	OVRD_PLL_PD	Override enable for PLL power-down
+		 *									0: Override disabled;
+		 *									1: Override enabled
+		 *
+		 *	3) De-asserted CMN_RST signal by clearing bit[2] (PCIEPHY_BTN) of SRC_PCIEPHY_RCR register.
+		 *
+		 *	4) Check whether PLL succeeds to lock. If PLL is still in unlock status, retry PLL_PD toggle until PLL can lock by the following sequence.
+		 *		Max retry time is 10 times:
+		 *		a) Asserted CMN _RST signal by setting bit[2] (PCIEPHY_BTN) of SRC_PCIEPHY_RCR register.
+		 *		b) Toggle internal PLL_PD signal by writing data “0x04”, “0xA4”,“0x04” to the register address “0x306D_0054” in sequence.
+		 *		c) De-asserted CMN_RST signal by clearing bit[2] (PCIEPHY_BTN) of SRC_PCIEPHY_RCR register.
+		 */
+		regmap_update_bits(imx6_pcie->reg_src, 0x2c, BIT(1), 0);
+
+		ret = 0;
+		while (retry_count--) {
+			/* Toggle internal PLL_PD signal by writing some magic data we got from NXP */
+			writel(0x04, magic_reg);
+			udelay(10);
+			writel(0xa4, magic_reg);
+			udelay(10);
+			writel(0x04, magic_reg);
+			udelay(10);
+
+			/* De-asserted CMN_RST signal by clearing PCIEPHY_BTN */
+			regmap_update_bits(imx6_pcie->reg_src, 0x2c, BIT(2), 0);
+
+			/* wait for phy pll lock */
+			ret = pci_imx_phy_pll_locked(imx6_pcie);
+			if (ret)
+				break;
+
+			/* Assert CMN_RST if we failed the lock */
+			regmap_update_bits(imx6_pcie->reg_src, 0x2c, BIT(2), BIT(2));
+			udelay(10);
+		}
+		iounmap(magic_reg);
+
+		/* After the locking set the phy regulator back to 1.0V */
+		regulator_set_voltage(imx6_pcie->pcie_phy_regulator, 1000000, 1000000);
+
+		if (ret == 0) {
+			dev_err(pp->dev, "PLL lock failed\n");
+			regmap_update_bits(imx6_pcie->reg_src, 0x2c, BIT(1), BIT(1));
+			regmap_update_bits(imx6_pcie->reg_src, 0x2c, BIT(6), BIT(6));
+			ret = -1;
+			goto err_inbound_axi;
+		}
+
 	} else if (is_imx6sx_pcie(imx6_pcie)) {
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR5,
 				IMX6SX_GPR5_PCIE_BTNRST, 0);
