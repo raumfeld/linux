@@ -683,7 +683,9 @@ static int imx6_pcie_host_init(struct pcie_port *pp)
 
 	imx6_pcie_init_phy(pp);
 
-	imx6_pcie_deassert_core_reset(pp);
+	ret = imx6_pcie_deassert_core_reset(pp);
+	if (ret < 0)
+		return ret;
 
 	dw_pcie_setup_rc(pp);
 
