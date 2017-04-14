@@ -214,7 +214,7 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_private *priv,
 	if (rx_pkt_type == PKT_TYPE_MGMT) {
 		ret = mwifiex_process_mgmt_packet(priv, skb);
 		if (ret)
-			dev_err(adapter->dev, "Rx of mgmt packet failed");
+			dev_dbg(adapter->dev, "Rx of mgmt packet failed");
 		dev_kfree_skb_any(skb);
 		return ret;
 	}
