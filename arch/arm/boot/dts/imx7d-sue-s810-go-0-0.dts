@@ -1,0 +1,10 @@
+/*
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+#include "imx7d-sue-s810-basic-0.dtsi"
+#include "imx7d-sue-streamkitgo-0.dtsi"

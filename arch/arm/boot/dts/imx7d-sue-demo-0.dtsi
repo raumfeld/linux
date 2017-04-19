@@ -1,0 +1,292 @@
+/*
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "StreamUnlimited stream810 democlient board (imx7d)";
+	compatible = "sue,stream810-demo", "sue,stream810", "fsl,imx7d";
+
+	audio {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_audio>;
+
+		compatible = "sue,am33xx-generic-audio";
+		sue,card-name = "Stream Audio on imx7";
+
+		clocks = <&clks IMX7D_AUDIO_MCLK_ROOT_CLK>,
+			 <&clks IMX7D_AUDIO_MCLK_ROOT_CLK>,
+			 <&clks IMX7D_PLL_AUDIO_POST_DIV>;
+		clock-names = "mclk", "mclk_rx", "pll";
+
+		assigned-clocks = <&clks IMX7D_AUDIO_MCLK_ROOT_SRC>,
+				  <&clks IMX7D_AUDIO_MCLK_ROOT_CLK>;
+		assigned-clock-parents = <&clks IMX7D_PLL_AUDIO_POST_DIV>;
+		assigned-clock-rates = <0>, <24576000>;
+
+		sue,cb-reset-gpio = <&gpio1 8 0>;
+		sue,early-mclk;
+
+		links {
+			sai1_link: link@0 {
+				sue,name = "analog";
+				sue,stream-name = "I2S";
+
+				sue,platform = <&sai1>;
+				sue,cpu-dai-name = "308a0000.sai";
+				sue,codec = <&audio_codec>;
+				sue,codec-dai-name = "pcm3060-hifi";
+			};
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_keys>;
+
+		button@1 {
+			label = "wakeup_sleep";
+			linux,code = <KEY_SLEEP>;
+			gpios = <&gpio3 21 GPIO_ACTIVE_HIGH>;
+			gpio-key,wakeup;
+		};
+
+		button@2 {
+			label = "wps";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&gpio6 20 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	lcd_backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm3 0 5000000>;
+		brightness-levels = <0 3 5 8 10 13 15 18 20 23 26 28 31 33 36 38 41 43 46 48 51 54 56 59 61 64 66 69 71 74
+			77 79 82 84 87 89 92 94 97 99 102 105 107 110 112 115 117 120 122 125 127 130 133 135 138 140 143 145 148 150
+			153 156 158 161 163 166 168 171 173 176 179 181 184 186 189 191 194 196 199 201 204 207 209 212 214 217 219 222 224 227
+			229 232 235 237 240 242 245 247 250 252 255>;
+		default-brightness-level = <100>;
+		status = "okay";
+	};
+
+	gpio_ir_recv {
+		compatible = "gpio-ir-receiver";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ir_recv>;
+
+		gpios = <&gpio4 5 GPIO_ACTIVE_LOW>;
+		linux,rc-map-name = "rc-philips";
+	};
+};
+
+/*
+ * FEC1 is disabled per default on the stream810 module for the democlient because the
+ * reset_n pin `MX7D_PAD_LCD_DATA15__GPIO3_IO20` collides with `MX7D_PAD_LCD_DATA15__LCD_DATA15`.
+ * If you want to enable FEC1, make sure you remove LCD_DATA15 from the LCD pinmux and have the
+ * apropriate hardware rework.
+ */
+&fec1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_enet1>;
+	status = "disabled";
+	pinctrl-assert-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+
+
+	assigned-clocks = <&clks IMX7D_ENET1_TIME_ROOT_SRC>,
+			  <&clks IMX7D_ENET1_TIME_ROOT_CLK>,
+			  <&clks IMX7D_ENET1_REF_ROOT_SRC>,
+			  <&clks IMX7D_ENET1_REF_ROOT_CLK>;
+	assigned-clock-parents = <&clks IMX7D_PLL_ENET_MAIN_100M_CLK>, <0>, <&clks IMX7D_PLL_ENET_MAIN_50M_CLK>, <0>;
+	assigned-clock-rates = <0>, <100000000>, <0>, <50000000>;
+
+	/* Override this list so we can change the last one (enet_out) */
+	clocks = <&clks IMX7D_ENET_AXI_ROOT_CLK>,
+		 <&clks IMX7D_ENET_AXI_ROOT_CLK>,
+		 <&clks IMX7D_ENET1_TIME_ROOT_CLK>,
+		 <&clks IMX7D_PLL_ENET_MAIN_125M_CLK>,
+		 <&clks IMX7D_ENET1_REF_ROOT_CLK>;
+
+	phy-mode = "rmii";
+
+	phy-reset-gpios = <&gpio3 20 GPIO_ACTIVE_LOW>;
+	phy-reset-duration = <10>;
+
+	phy-handle = <&ethphy1>;
+};
+
+&i2c2 {
+	audio_codec: pcm3060@47 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_codec>;
+
+		compatible = "ti,pcm3060";
+		reg = <0x47>;
+
+		sue,amp-reset-gpio = <&gpio5 8 0>;
+	};
+};
+
+/*
+ * NOTES for the last number in every line:
+ * 	PAD_CTL_PUS_100K_DOWN	(0 << 5)
+ * 	PAD_CTL_PUS_5K_UP	(1 << 5)
+ * 	PAD_CTL_PUS_47K_UP	(2 << 5)
+ * 	PAD_CTL_PUS_100K_UP	(3 << 5)
+ * 	PAD_CTL_PUE		(1 << 4)
+ * 	PAD_CTL_HYS		(1 << 3)
+ * 	PAD_CTL_SRE_SLOW	(1 << 2)
+ * 	PAD_CTL_SRE_FAST	(0 << 2)
+ * 	PAD_CTL_DSE_X1		(0 << 0) \
+ * 	PAD_CTL_DSE_X2		(2 << 0)  |___ NOTE: the numbering here is not a typo!
+ * 	PAD_CTL_DSE_X4		(1 << 0)  |
+ * 	PAD_CTL_DSE_X6		(3 << 0) /
+ * 	NO_PAD_CTL		(1 << 31): indicate this pin does not need config.
+ * 	SIO			(1 << 30): Software Input On Field.
+ */
+&iomuxc {
+	imx7d-sue-demo {
+		pinctrl_audio: audiogrp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO08__GPIO1_IO8	0x00	/* CODEC_NRESET */
+			>;
+		};
+
+		pinctrl_codec: codecgrp {
+			fsl,pins = <
+				MX7D_PAD_SD1_DATA3__GPIO5_IO8	0x00	/* AMP mute */
+			>;
+		};
+
+		pinctrl_enet1: enet1grp {
+			fsl,pins = <
+				MX7D_PAD_ENET1_RGMII_TX_CTL__ENET1_RGMII_TX_CTL	0x1
+				MX7D_PAD_ENET1_RGMII_TD0__ENET1_RGMII_TD0	0x1
+				MX7D_PAD_ENET1_RGMII_TD1__ENET1_RGMII_TD1	0x1
+
+				MX7D_PAD_ENET1_RGMII_RX_CTL__ENET1_RGMII_RX_CTL	0x1
+				MX7D_PAD_ENET1_RGMII_RD0__ENET1_RGMII_RD0	0x1
+				MX7D_PAD_ENET1_RGMII_RD1__ENET1_RGMII_RD1	0x1
+				MX7D_PAD_ENET1_RGMII_RXC__ENET1_RX_ER		0x1
+
+				MX7D_PAD_ENET1_TX_CLK__CCM_ENET_REF_CLK1	0x40000001
+
+				/* IRQ */
+				MX7D_PAD_GPIO1_IO11__GPIO1_IO11			0x80000000
+				/* nRESET pin */
+				MX7D_PAD_LCD_DATA15__GPIO3_IO20			0x80000000
+			>;
+		};
+
+		pinctrl_gpio_keys: gpiokeysgrp {
+			fsl,pins = <
+				MX7D_PAD_LCD_DATA16__GPIO3_IO21			0x00		/* BUTTON_SENSE */
+
+				/*
+				 * I2S_BCLK_OUT2 (now used for the WPS button since
+				 * the GPIO1_IO0 pad from before is now used for the watchdog reset.
+				 */
+				MX7D_PAD_SAI2_TX_BCLK__GPIO6_IO20		0xF0		/* 100k pull-up */
+			>;
+		};
+
+		pinctrl_ir_recv: irrecvgrp {
+			fsl,pins = <
+				MX7D_PAD_UART3_TX_DATA__GPIO4_IO5		0x00
+			>;
+		};
+
+		pinctrl_lcdif_ctrl: lcdifctrlgrp {
+			fsl,pins = <
+				MX7D_PAD_LCD_CLK__LCD_CLK	0x14
+				MX7D_PAD_LCD_HSYNC__LCD_HSYNC	0x14
+				MX7D_PAD_LCD_VSYNC__LCD_VSYNC	0x14
+				MX7D_PAD_EPDC_BDR1__LCD_ENABLE	0x14
+			>;
+		};
+
+		pinctrl_lcdif_dat: lcdifdatgrp {
+			fsl,pins = <
+				MX7D_PAD_LCD_DATA00__LCD_DATA0	0x14
+				MX7D_PAD_LCD_DATA01__LCD_DATA1	0x14
+				MX7D_PAD_EPDC_DATA02__LCD_DATA2 0x14
+				MX7D_PAD_EPDC_DATA03__LCD_DATA3 0x14
+				MX7D_PAD_EPDC_DATA04__LCD_DATA4 0x14
+				MX7D_PAD_LCD_DATA05__LCD_DATA5	0x14
+				MX7D_PAD_LCD_DATA06__LCD_DATA6	0x14
+				MX7D_PAD_LCD_DATA07__LCD_DATA7	0x14
+				MX7D_PAD_LCD_DATA08__LCD_DATA8	0x14
+				MX7D_PAD_LCD_DATA09__LCD_DATA9	0x14
+				MX7D_PAD_LCD_DATA10__LCD_DATA10	0x14
+				MX7D_PAD_LCD_DATA11__LCD_DATA11	0x14
+				MX7D_PAD_LCD_DATA12__LCD_DATA12	0x14
+				MX7D_PAD_LCD_DATA13__LCD_DATA13	0x14
+				MX7D_PAD_LCD_DATA14__LCD_DATA14	0x14
+				MX7D_PAD_LCD_DATA15__LCD_DATA15	0x14
+			>;
+		};
+
+		pinctrl_pwm3: pwm3grp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO10__PWM3_OUT	0x14
+			>;
+		};
+	};
+};
+
+&iomuxc_lpsr {
+	imx7d-sue-demo {
+	};
+};
+
+&lcdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lcdif_dat
+		     &pinctrl_lcdif_ctrl>;
+	display = <&display0>;
+	status = "okay";
+
+	display0: display {
+		bits-per-pixel = <16>;
+		bus-width = <16>;
+
+		display-timings {
+			native-mode = <&timing0>;
+			timing0: 800x480px {
+				/* 800x480 */
+				clock-frequency = <50000000>;
+				hactive = <800>;
+				vactive = <480>;
+				hfront-porch = <1>;
+				hback-porch = <87>;
+				hsync-len = <1>;
+				vback-porch = <32>;
+				vfront-porch = <1>;
+				vsync-len = <1>;
+
+				hsync-active = <0>;
+				vsync-active = <0>;
+				pixelclk-active = <0>;
+				de-active = <1>;
+			};
+		};
+	};
+};
+
+&mdio_bus {
+	ethphy1: ethernet-phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <1>;
+	};
+};
+
+&pwm3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm3>;
+	status = "okay";
+};

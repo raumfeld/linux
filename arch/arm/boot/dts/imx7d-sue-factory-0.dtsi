@@ -1,0 +1,183 @@
+/*
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "StreamUnlimited stream810 democlient board (imx7d)";
+	compatible = "sue,stream810-factory", "sue,stream810", "fsl,imx7d";
+};
+
+&i2c2 {
+	status = "disabled";
+};
+
+&fec1 {
+	status = "disabled";
+};
+
+&sai1 {
+	status = "disabled";
+};
+
+&reg_usb_otg1_vbus {
+	status = "disabled";
+};
+
+&usbotg1 {
+	status = "disabled";
+};
+
+/*
+ * NOTES for the last number in every line:
+ * 	PAD_CTL_PUS_100K_DOWN	(0 << 5)
+ * 	PAD_CTL_PUS_5K_UP	(1 << 5)
+ * 	PAD_CTL_PUS_47K_UP	(2 << 5)
+ * 	PAD_CTL_PUS_100K_UP	(3 << 5)
+ * 	PAD_CTL_PUE		(1 << 4)
+ * 	PAD_CTL_HYS		(1 << 3)
+ * 	PAD_CTL_SRE_SLOW	(1 << 2)
+ * 	PAD_CTL_SRE_FAST	(0 << 2)
+ * 	PAD_CTL_DSE_X1		(0 << 0) \
+ * 	PAD_CTL_DSE_X2		(2 << 0)  |___ NOTE: the numbering here is not a typo!
+ * 	PAD_CTL_DSE_X4		(1 << 0)  |
+ * 	PAD_CTL_DSE_X6		(3 << 0) /
+ * 	NO_PAD_CTL		(1 << 31): indicate this pin does not need config.
+ * 	SIO			(1 << 30): Software Input On Field.
+ */
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_factory_test_gpios>;
+	imx7d-sue-demo {
+		pinctrl_factory_test_gpios: factory_test_gpios {
+			fsl,pins = <
+			// Pins are grouped as they are in the gpio tests.
+			MX7D_PAD_GPIO1_IO11__GPIO1_IO11			0x10
+
+			MX7D_PAD_ECSPI1_MOSI__GPIO4_IO17		0x50
+
+			MX7D_PAD_LCD_CLK__GPIO3_IO0				0x10
+			MX7D_PAD_LCD_HSYNC__GPIO3_IO2			0x10
+
+			MX7D_PAD_LCD_DATA00__GPIO3_IO5			0x10
+			MX7D_PAD_EPDC_DATA02__GPIO2_IO2			0x10
+
+			MX7D_PAD_LCD_DATA01__GPIO3_IO6			0x10
+			MX7D_PAD_LCD_DATA14__GPIO3_IO19			0x10
+
+			MX7D_PAD_EPDC_DATA03__GPIO2_IO3			0x10
+			MX7D_PAD_LCD_DATA06__GPIO3_IO11			0x10
+
+			MX7D_PAD_LCD_DATA07__GPIO3_IO12			0x10
+			MX7D_PAD_LCD_DATA05__GPIO3_IO10			0x10
+
+			MX7D_PAD_LCD_DATA08__GPIO3_IO13			0x10
+			MX7D_PAD_LCD_DATA13__GPIO3_IO18			0x10
+
+			MX7D_PAD_LCD_DATA09__GPIO3_IO14			0x10
+			MX7D_PAD_LCD_DATA11__GPIO3_IO16			0x10
+
+			MX7D_PAD_LCD_DATA10__GPIO3_IO15			0x10
+			MX7D_PAD_LCD_DATA12__GPIO3_IO17			0x10
+
+			MX7D_PAD_LCD_DATA15__GPIO3_IO20			0x10
+
+			MX7D_PAD_I2C1_SCL__GPIO4_IO8			0x10
+			MX7D_PAD_I2C2_SDA__GPIO4_IO11			0x10
+
+			MX7D_PAD_LCD_VSYNC__GPIO3_IO3			0x10
+			MX7D_PAD_EPDC_BDR1__GPIO2_IO29			0x10
+
+			MX7D_PAD_SAI2_RX_DATA__GPIO6_IO21		0x10
+			MX7D_PAD_UART2_RX_DATA__GPIO4_IO2		0x10
+
+			MX7D_PAD_SD1_CMD__GPIO5_IO4				0x10
+			MX7D_PAD_ENET1_RGMII_TXC__GPIO7_IO11	0x10
+			MX7D_PAD_SAI1_RX_BCLK__GPIO6_IO17		0x10
+
+			MX7D_PAD_SAI1_RX_SYNC__GPIO6_IO16		0x10
+			MX7D_PAD_SD1_CLK__GPIO5_IO3				0x10
+			MX7D_PAD_UART3_RX_DATA__GPIO4_IO4		0x10
+
+			MX7D_PAD_SAI2_TX_DATA__GPIO6_IO22		0x10
+			MX7D_PAD_GPIO1_IO12__GPIO1_IO12			0x10
+			MX7D_PAD_SAI2_TX_SYNC__GPIO6_IO19		0x10
+
+			MX7D_PAD_UART2_TX_DATA__GPIO4_IO3		0x10
+			MX7D_PAD_SAI2_TX_BCLK__GPIO6_IO20		0x10
+
+			MX7D_PAD_GPIO1_IO10__GPIO1_IO10			0x10
+			MX7D_PAD_GPIO1_IO08__GPIO1_IO8			0x10
+
+			MX7D_PAD_GPIO1_IO09__GPIO1_IO9			0x10
+			MX7D_PAD_SD1_DATA1__GPIO5_IO6			0x10
+
+			MX7D_PAD_I2C2_SCL__GPIO4_IO10			0x10
+
+			MX7D_PAD_ENET1_COL__GPIO7_IO15			0x10
+			MX7D_PAD_SD2_CLK__GPIO5_IO12			0x10
+
+			MX7D_PAD_SD1_DATA1__GPIO5_IO6			0x10
+			MX7D_PAD_LCD_DATA02__GPIO3_IO7			0x10
+			MX7D_PAD_ENET1_RX_CLK__GPIO7_IO13		0x10
+			MX7D_PAD_SAI1_RX_DATA__GPIO6_IO12		0x10
+
+			MX7D_PAD_SD1_DATA3__GPIO5_IO8			0x10
+			MX7D_PAD_SD1_DATA2__GPIO5_IO7			0x10
+			MX7D_PAD_SAI1_TX_SYNC__GPIO6_IO14		0x10
+
+			MX7D_PAD_ENET1_RGMII_TX_CTL__GPIO7_IO10 0x10
+			MX7D_PAD_ENET1_RGMII_TD0__GPIO7_IO6		0x10
+
+			MX7D_PAD_ENET1_RGMII_RXC__GPIO7_IO5		0x10
+			MX7D_PAD_ENET1_TX_CLK__GPIO7_IO12		0x10
+
+			MX7D_PAD_ENET1_RGMII_TD1__GPIO7_IO7		0x10
+			MX7D_PAD_ENET1_RGMII_RX_CTL__GPIO7_IO4	0x10
+
+			MX7D_PAD_ENET1_RGMII_RD1__GPIO7_IO1		0x10
+			MX7D_PAD_ECSPI1_SCLK__GPIO4_IO16		0x10
+
+			MX7D_PAD_ENET1_RGMII_RD0__GPIO7_IO0		0x10
+			MX7D_PAD_ECSPI1_SS0__GPIO4_IO19			0x10
+
+			MX7D_PAD_SD2_CMD__GPIO5_IO13			0x10
+			MX7D_PAD_SD2_DATA3__GPIO5_IO17			0x10
+
+			MX7D_PAD_SD2_DATA1__GPIO5_IO15			0x10
+			MX7D_PAD_SD2_DATA2__GPIO5_IO16			0x10
+
+			MX7D_PAD_ECSPI1_MISO__GPIO4_IO18		0x10
+			MX7D_PAD_SD2_DATA0__GPIO5_IO14			0x10
+
+			MX7D_PAD_EPDC_DATA04__GPIO2_IO4			0x10
+			MX7D_PAD_UART3_TX_DATA__GPIO4_IO5		0x10
+			>;
+		};
+	};
+};
+
+&iomuxc_lpsr {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_factory_test_lpsr_gpios>;
+	imx7d-sue-demo {
+		pinctrl_factory_test_lpsr_gpios: factory_test_lpsr_gpios {
+			fsl,pins = <
+			MX7D_PAD_GPIO1_IO05__GPIO1_IO5 0x10
+			MX7D_PAD_GPIO1_IO03__GPIO1_IO3 0x10
+			MX7D_PAD_GPIO1_IO00__GPIO1_IO0 0x10
+			MX7D_PAD_GPIO1_IO01__GPIO1_IO1 0x10
+			>;
+		};
+	};
+};
+
+&mdio_bus {
+	ethphy1: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
