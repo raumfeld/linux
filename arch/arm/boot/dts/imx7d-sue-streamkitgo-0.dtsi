@@ -1,0 +1,71 @@
+/*
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx7d-sue-demo-basic-0.dtsi"
+
+/ {
+	audio {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_audio>;
+
+		sue,cb-reset-gpio = <&gpio1 11 0>;
+
+		sue,audio-routing =
+			"LINE1L", "Mic Bias",
+			"LINE1R", "Mic Bias";
+
+		links {
+			link@0 {
+				sue,codec = <&tlv320aic3104>;
+				sue,codec-dai-name = "tlv320aic3x-hifi";
+			};
+		};
+	};
+};
+
+#include <dt-bindings/sound/tlv320aic31xx-micbias.h>
+
+&i2c1 {
+	tlv320aic3104: tlv320aic3104@18 {
+		pinctrl-names = "default";
+ 		pinctrl-0 = <&pinctrl_codec_tlv>;
+
+		compatible = "ti,tlv320aic3104";
+		reg = <0x18>;
+
+		ai3x-micbias-vg = <MICBIAS_AVDDV>;
+		gpio-reset = <&gpio4 11 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hostlink>;
+
+	imx7d-sue-streamkitgo {
+		pinctrl_audio_streamkitgo: audiostreamkitgogrp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO11__GPIO1_IO11	0x00	/* AMP nMUTE */
+			>;
+		};
+
+ 		pinctrl_codec_tlv: codectlvgrp {
+ 			fsl,pins = <
+				MX7D_PAD_I2C2_SDA__GPIO4_IO11	0x00	/* CODEC nRESET */
+ 			>;
+ 		};
+
+		pinctrl_hostlink: hostlinkgrp {
+			fsl,pins = <
+				MX7D_PAD_I2C2_SCL__GPIO4_IO10	0x30	/* nIRQ (47k pull up) */
+			>;
+		};
+	};
+};
+
+&pcm_dummy {
+	status = "disabled";
+};
