@@ -34,6 +34,8 @@ Optional properties:
 - tpl-support: TPL (Targeted Peripheral List) feature for targeted hosts
 - phy-clkgate-delay-us: the delay time(us) between putting phy into low power
   mode and gate phy clock.
+- disable-vbus-oc-protection: this disables th over current protection of
+  the VBUS supply.
 
 Examples:
 usb@02184000 { /* USB OTG */
