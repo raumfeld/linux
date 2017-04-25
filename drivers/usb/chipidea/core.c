@@ -701,6 +701,11 @@ static int ci_get_platdata(struct device *dev,
 		of_property_read_u32(dev->of_node, "phy-clkgate-delay-us",
 					&platdata->phy_clkgate_delay_us);
 
+	platdata->vbus_oc_protection_disabled = of_property_read_bool(dev->of_node, "disable-vbus-oc-protection");
+	if (platdata->vbus_oc_protection_disabled) {
+		dev_info(dev, "VBUS OC protetcion is disabled\n");
+	}
+
 	return 0;
 }
 
@@ -1056,17 +1061,20 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	/* Init workqueue for controller power lost handling */
 	INIT_WORK(&ci->power_lost_work, ci_power_lost_work);
 
-	/* Set the VBUS-valid threshold voltage to 4.75V - 6% = 4.465V */
-	hw_write_id_reg(ci, 0x230, (7 << 10), (0 << 10));
 
-	/* Init workqueue for checking VBUS overcurrent & start it. */
-	ci->vbus_overcurrent = false;
-	INIT_DELAYED_WORK(&ci->check_vbus_work,
-			  imx7d_check_vbus_overcurrent);
-	queue_delayed_work(
-		system_wq,
-		&ci->check_vbus_work,
-		msecs_to_jiffies(1000));
+	if (!ci->platdata->vbus_oc_protection_disabled) {
+		/* Set the VBUS-valid threshold voltage to 4.75V - 6% = 4.465V */
+		hw_write_id_reg(ci, 0x230, (7 << 10), (0 << 10));
+
+		/* Init workqueue for checking VBUS overcurrent & start it. */
+		ci->vbus_overcurrent = false;
+		INIT_DELAYED_WORK(&ci->check_vbus_work,
+				  imx7d_check_vbus_overcurrent);
+		queue_delayed_work(
+			system_wq,
+			&ci->check_vbus_work,
+			msecs_to_jiffies(1000));
+	}
 
 	ret = dbg_create_files(ci);
 	if (!ret)
