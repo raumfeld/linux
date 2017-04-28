@@ -561,7 +561,6 @@ static const struct of_device_id snd_soc_am33xx_s800_match[] = {
 static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 {
 	int ret;
-	unsigned int dai_fmt;
 	struct device *dev = &pdev->dev;
 	struct device_node *top_node, *node;
 	struct snd_soc_am33xx_s800 *priv;
@@ -578,8 +577,6 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 			    GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-
-	dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF;
 
 	priv->pllclk = devm_clk_get(&pdev->dev, "pll");
 	if (IS_ERR(priv->pllclk))
@@ -698,7 +695,7 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 			else
 				link->ops = &am33xx_s800_i2s_dai_link_ops;
 
-			link->dai_fmt = dai_fmt | dai_fmt_link;
+			link->dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | dai_fmt_link;
 			link++;
 		}
 	} else {
