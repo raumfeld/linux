@@ -302,6 +302,9 @@ struct sdma_desc {
 	unsigned int                    buf_tail;
 	struct sdma_channel		*sdmac;
 	struct sdma_buffer_descriptor	*bd;
+
+	unsigned int                    buf_ptail;
+	unsigned int                    pcount;
 };
 
 /**
@@ -1679,6 +1682,9 @@ static struct dma_async_tx_descriptor *sdma_prep_dma_cyclic(
 	if (sdmac->peripheral_type == IMX_DMATYPE_HDMI)
 		return vchan_tx_prep(&sdmac->vc, &desc->vd, flags);
 
+	desc->buf_ptail = num_periods - 1;
+	desc->pcount = period_len;
+
 	desc->buf_tail = 0;
 	desc->vd.overide_callback = (void *)sdma_handle_channel_loop;
 	desc->vd.overide_param = sdmac;
@@ -1804,10 +1810,52 @@ static enum dma_status sdma_tx_status(struct dma_chan *chan,
 			struct sdma_buffer_descriptor *bd;
 
 			bd = &desc->bd[desc->buf_tail];
-			if (sdmac->peripheral_type != IMX_DMATYPE_UART)
-				residue = ((desc->num_bd - 1) - desc->buf_tail) *
-					sdmac->period_len + bd->mode.count;
-			else
+			if (sdmac->peripheral_type != IMX_DMATYPE_UART) {
+				u32 buf_tail = desc->buf_tail;
+				u32 count = bd->mode.count;
+
+				/*
+				 * My assumption is that the bd->mode.count value is updated by the 16-bit RISC DMA controller.
+				 * What now sometimes seems to happen is that the mode.count value is not belonging to the
+				 * current buf_tail value anymore but instead to the next one.
+				 *
+				 * There are probably a few reasons for that, buf_tail is incremented in sdma_handle_channel_loop()
+				 * where the vc.lock is aquired, so what might happen is that when we are inside this vc.lock region
+				 * here sdma_handle_channel_loop() will not be able to update buf_tail. The other issue might be
+				 * that mode.count is reset by the DMA controller before sdma_handle_channel_loop() will be called,
+				 * this also obviously might lead to a race condition.
+				 *
+				 * All in all it is a race condition between buf_tail and mode.count and since mode.count is updated
+				 * at any time by the SDMA engine we can not do any locking or anything. Correct me if I'm wrong.
+				 *
+				 * Instead we need to da a bit of crazy heuristics:
+				 *  1. check if the current mode.count is bigger than the previouse value and buf_tail stayed the same
+				 *     NOTE: mode.count is decreasing from sdmac->period_len to 0, after it reaches 0 buf_tail is increased
+				 *     Thus when mode.count jumped from 0 to sdmac->period_len, but the buf_tail was still the same as the
+				 *     previous one (buf_ptail), then we know that sdma_handle_channel_loop() was not called properly,
+				 *     so we temporary increase buf_tail to the value it should have.
+				 *
+				 *  2. sometimes we arrive here multiple times before buf_tail has been updated in sdma_handle_channel_loop()
+				 *     thus we only update pcount and buf_ptail once buf_tail is valid again, then the if-condition will fail
+				 *     and we are back to normal operation.
+				 *
+				 */
+				if (count > desc->pcount && buf_tail == desc->buf_ptail) {
+					/* race conditition detected - working around */
+					buf_tail = (buf_tail + 1) % desc->num_bd;
+
+					/* Re-read the count using the proper buf_tail value */
+					bd = &desc->bd[buf_tail];
+					count = bd->mode.count;
+				} else {
+					/* standard behaviour */
+					desc->pcount = count;
+					desc->buf_ptail = buf_tail;
+				}
+
+				residue = ((desc->num_bd - 1) - buf_tail) * sdmac->period_len + count;
+
+			} else
 				residue = desc->des_count - desc->des_real_count;
 		} else
 			residue = desc->des_count;
