@@ -11,6 +11,9 @@
 	compatible = "sue,stream810-demo", "sue,stream810", "fsl,imx7d";
 
 	audio {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_audio>;
+
 		compatible = "sue,am33xx-generic-audio";
 		sue,card-name = "Stream Audio on imx7";
 
@@ -152,6 +155,12 @@
 	pinctrl-0 = <&pinctrl_hostlink>;
 
 	imx7d-sue-streamkitprime {
+		pinctrl_audio: audiogrp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO08__GPIO1_IO8		0x00    /* PDOWN_N */
+			>;
+		};
+
 		pinctrl_uart3: uart3grp {
 			fsl,pins = <
 				MX7D_PAD_UART3_TX_DATA__UART3_DCE_TX	0x79
