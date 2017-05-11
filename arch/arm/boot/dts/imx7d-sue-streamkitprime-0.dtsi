@@ -48,6 +48,8 @@
 				sue,cpu-dai-name = "308b0000.sai";
 				sue,codec = <&pcm_dummy2>;
 				sue,codec-dai-name = "Dummy PCM Codec";
+
+				sue,tdm;
 			};
 		};
 	};

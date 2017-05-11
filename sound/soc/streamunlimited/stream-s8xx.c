@@ -267,7 +267,7 @@ exit_free_info:
 
 static int am33xx_s800_common_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params,
-					bool is_spdif)
+					bool is_tdm)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
@@ -399,6 +399,16 @@ static int am33xx_s800_common_hw_params(struct snd_pcm_substream *substream,
 	}
 
 #endif /* CONFIG_SND_SOC_STREAM_AM33XX */
+
+	if (is_tdm) {
+		/* NOTE: fsl_sai_set_dai_tdm_slot ignores tx_mask and rx_mask */
+		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0, 0, 8, 32);
+		if (ret < 0) {
+			dev_warn(card->dev, "Unable to set TDM slot : %d\n", ret);
+			return ret;
+		}
+	}
+
 	dev_info(card->dev, "Configured common HW params, RATE %d, MCLK %d, BCLK %d", rate, mclk, bclk);
 
 	return 0;
@@ -431,14 +441,14 @@ static struct snd_soc_ops am33xx_s800_i2s_dai_link_ops = {
 	.hw_free	= am33xx_s800_common_hw_free,
 };
 
-static int am33xx_s800_spdif_hw_params(struct snd_pcm_substream *substream,
+static int am33xx_s800_tdm_hw_params(struct snd_pcm_substream *substream,
 				       struct snd_pcm_hw_params *params)
 {
 	return am33xx_s800_common_hw_params(substream, params, true);
 }
 
-static struct snd_soc_ops am33xx_s800_spdif_dai_link_ops = {
-	.hw_params	= am33xx_s800_spdif_hw_params,
+static struct snd_soc_ops am33xx_s800_tdm_dai_link_ops = {
+	.hw_params	= am33xx_s800_tdm_hw_params,
 	.hw_free	= am33xx_s800_common_hw_free,
 };
 
@@ -690,12 +700,14 @@ static int snd_soc_am33xx_s800_probe(struct platform_device *pdev)
 				dai_fmt_link |= SND_SOC_DAIFMT_CMM;
 
 
-			if (of_get_property(child, "sue,spdif", NULL))
-				link->ops = &am33xx_s800_spdif_dai_link_ops;
-			else
+			if (of_get_property(child, "sue,tdm", NULL)) {
+				link->ops = &am33xx_s800_tdm_dai_link_ops;
+				link->dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_NB_NF | dai_fmt_link;
+			} else {
 				link->ops = &am33xx_s800_i2s_dai_link_ops;
+				link->dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | dai_fmt_link;
+			}
 
-			link->dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | dai_fmt_link;
 			link++;
 		}
 	} else {
