@@ -818,7 +818,7 @@ static int gpmi_get_clks(struct gpmi_nand_data *this)
 		 * If you want to use the ONFI nand which is in the
 		 * Synchronous Mode, you should change the clock as you need.
 		 */
-		clk_set_rate(r->clock[0], 22000000);
+		clk_set_rate(r->clock[0], 100000000);
 
 	return 0;
 
