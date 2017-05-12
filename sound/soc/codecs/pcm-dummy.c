@@ -28,6 +28,7 @@ struct pcm_dummy_private {
 	struct device  *dev;	/* attached platform device */
 
 	unsigned gpio_mute;
+	bool nmute;
 	unsigned gpio_nreset;
 };
 
@@ -180,6 +181,7 @@ static int pcm_dummy_probe(struct platform_device *pDev)
 	#ifdef CONFIG_OF
 	pdata->gpio_nreset = of_get_named_gpio(dev->of_node, "reset-gpio", 0);
 	pdata->gpio_mute   = of_get_named_gpio(dev->of_node, "mute-gpio", 0);
+	pdata->nmute       = of_get_property(dev->of_node, "sue,nmute", NULL);
 	#endif
 
 
@@ -202,12 +204,12 @@ static int pcm_dummy_probe(struct platform_device *pDev)
 
 	/* Enable the amplifier */
 	if (gpio_is_valid(pdata->gpio_mute)) {
-		ret = gpio_request_one(pdata->gpio_mute, GPIOF_OUT_INIT_HIGH, "Dummy codec amplifier mute GPIO");
+		ret = gpio_request_one(pdata->gpio_mute, pdata->nmute ? GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH, "Dummy codec amplifier mute GPIO");
 
 		if (ret < 0)
 			dev_warn(dev, "failed to request mute gpio: %d\n", ret);
 		else
-			gpio_set_value(pdata->gpio_mute, 0);
+			gpio_set_value(pdata->gpio_mute, pdata->nmute ? 1 : 0);
 	}
 
 	ret = snd_soc_register_codec(dev, &soc_codec_dev_pcm_dummy, &pcm_dummy_dai, 1);
