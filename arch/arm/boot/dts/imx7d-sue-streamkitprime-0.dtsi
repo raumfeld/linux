@@ -55,7 +55,12 @@
 	};
 
 	pcm_dummy1: pcm_dummy1 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_dummy_codec1>;
+
 		compatible = "sue,pcm_dummy";
+		mute-gpio = <&gpio1 11 0>;
+		sue,nmute;
 	};
 
 	pcm_dummy2: pcm_dummy2 {
@@ -125,6 +130,12 @@
 		pinctrl_audio: audiogrp {
 			fsl,pins = <
 				MX7D_PAD_GPIO1_IO08__GPIO1_IO8		0x00    /* PDOWN_N */
+			>;
+		};
+
+		pinctrl_dummy_codec1: dummy1grp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO11__GPIO1_IO11		0x00	/* NMUTE */
 			>;
 		};
 
