@@ -134,6 +134,16 @@
 	pinctrl-0 = <&pinctrl_gpmi_nand_1>;
 	status = "okay";
 	nand-on-flash-bbt;
+
+	timings {
+		data-setup-ns = <12>;
+		data-hold-ns = <11>;
+		address-setup-ns = <20>;
+		sample-delay-ns = <0>;
+		trea-ns = <20>;
+		trloh-ns = <5>;
+		trhoh-ns = <25>;
+	};
 };
 
 &i2c2 {
