@@ -897,6 +897,7 @@ static int init_hardware(struct gpmi_nand_data *this)
 	if (ret)
 		return ret;
 
+	/* NOTE: if available these timings will be overwritten by the device-tree later on. */
 	this->timing = safe_timing;
 	return 0;
 }
@@ -2233,6 +2234,45 @@ static int gpmi_init_last(struct gpmi_nand_data *this)
 	return 0;
 }
 
+static int of_read_timing(struct device_node *np, const char *name, int8_t *timing)
+{
+	int ret;
+	u32 val;
+
+	ret = of_property_read_u32(np, name, &val);
+	if (!ret) {
+		if (val == 0)
+			*timing = -1;
+		else
+			*timing = val;
+	}
+
+	return ret;
+}
+
+static int of_get_timings(struct gpmi_nand_data *this)
+{
+	struct device_node *np = this->dev->of_node;
+	struct device_node *timings_np = NULL;
+
+	timings_np = of_get_child_by_name(np, "timings");
+	if (!timings_np) {
+		dev_warn(this->dev, "timings node not found\n");
+		return -ENODEV;
+	}
+
+	of_read_timing(timings_np, "data-setup-ns", &this->timing.data_setup_in_ns);
+	of_read_timing(timings_np, "data-hold-ns", &this->timing.data_hold_in_ns);
+	of_read_timing(timings_np, "address-setup-ns", &this->timing.address_setup_in_ns);
+	of_read_timing(timings_np, "sample-delay-ns", &this->timing.gpmi_sample_delay_in_ns);
+	of_read_timing(timings_np, "trea-ns", &this->timing.tREA_in_ns);
+	of_read_timing(timings_np, "trloh-ns", &this->timing.tRLOH_in_ns);
+	of_read_timing(timings_np, "trhoh-ns", &this->timing.tRHOH_in_ns);
+
+	of_node_put(timings_np);
+	return 0;
+}
+
 static int gpmi_nand_init(struct gpmi_nand_data *this)
 {
 	struct mtd_info  *mtd = &this->mtd;
@@ -2275,6 +2315,14 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	}
 	dev_dbg(this->dev, "Blockmark swapping %sabled\n",
 		this->swap_block_mark ? "en" : "dis");
+
+	ret = of_get_timings(this);
+	if (ret)
+		dev_warn(this->dev, "could not get timings from device-tree, will use safe defaults\n");
+
+	dev_dbg(this->dev, "timings: %d %d %d %d %d %d %d\n", this->timing.data_setup_in_ns, this->timing.data_hold_in_ns,
+								this->timing.address_setup_in_ns, this->timing.gpmi_sample_delay_in_ns,
+								this->timing.tREA_in_ns, this->timing.tRLOH_in_ns, this->timing.tRHOH_in_ns);
 
 	/*
 	 * Allocate a temporary DMA buffer for reading ID in the
