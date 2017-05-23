@@ -270,7 +270,15 @@
 				MX7D_PAD_SAI1_TX_SYNC__SAI1_TX_SYNC	0x13	/* I2S_WCLK_OUT1_3 */
 				MX7D_PAD_ENET1_COL__SAI1_TX_DATA0	0x13	/* I2S_DATA_OUT1 */
 				MX7D_PAD_SAI1_RX_DATA__SAI1_RX_DATA0	0x13	/* I2S_DATA_IN1 */
-				MX7D_PAD_SD1_DATA3__SAI3_TX_DATA0	0x13	/* I2S_DATA_OUT3 */
+
+				/*
+				 * I2S_DATA_OUT3
+				 * NOTE: This pin is used as the amp mute on the democlient
+				 * with the adapter board, thus we need it to comment it
+				 * out for now, otherwise we break the audio on the
+				 * democlient.
+				 */
+				/* MX7D_PAD_SD1_DATA3__SAI3_TX_DATA0	0x13 */
 			>;
 		};
 
