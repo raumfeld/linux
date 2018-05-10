@@ -1,0 +1,73 @@
+/dts-v1/;
+
+#include "pxa300-raumfeld-common.dtsi"
+
+/ {
+	model = "Raumfeld Speaker One (PXA3xx)";
+	compatible = "raumfeld,raumfeld-speaker-one-pxa303", "marvell,pxa300";
+
+	wm8782: wm8782 {
+		status = "disabled";
+		compatible = "wm8782";
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "Raumfeld Speaker";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		simple-audio-card,dai-link@0 {
+			reg = <0>;
+			format = "i2s";
+			bitclock-master = <&dailink_master_analog>;
+			frame-master = <&dailink_master_analog>;
+			mclk-fs = <256>;
+
+			dailink_master_analog: cpu {
+				sound-dai = <&ssp_dai0>;
+				system-clock-index = <1>;	/* PXA_SSP_CLK_EXT	*/
+				clock-divider-index = <2>;	/* PXA_SSP_DIV_SCR	*/
+				clock-divider-value = <4>;
+			};
+
+			codec {
+				sound-dai = <&sta320>;
+			};
+		};
+	};
+};
+
+&ssp1 {
+	status = "okay";
+};
+
+&spi {
+	dac@2 {
+		compatible = "ti,dac7512";
+		reg = <2>;
+		spi-max-frequency = <1000000>;
+		vcc-supply = <&reg_3v3>;
+	};
+};
+
+&pxai2c1 {
+	sta320: codec@1a {
+		compatible = "st,sta32x";
+		pinctrl-names = "default";
+		pinctrl-0 = <&sta320_pins>;
+		reg = <0x1a>;
+		Vdda-supply = <&reg_3v3>;
+		Vdd3-supply = <&reg_3v3>;
+		Vcc-supply = <&reg_va_5v0>;
+		#sound-dai-cells = <0>;
+	};
+};
+
+&pinctrl {
+	sta320_pins: sta320_pins {
+		pinctrl-single,pins = <
+		>;
+		pinctrl-single,low-power-mode = MFP_LPM(MFP_LPM_PULL_LOW);
+	};
+};

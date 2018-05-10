@@ -1,0 +1,93 @@
+/dts-v1/;
+
+#include "pxa300-raumfeld-common.dtsi"
+
+/ {
+	model = "Raumfeld Connector (PXA3xx)";
+	compatible = "raumfeld,raumfeld-connector-pxa303", "marvell,pxa300";
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "Raumfeld Connector";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		simple-audio-card,dai-link@0 {
+			reg = <0>;
+			format = "i2s";
+			bitclock-master = <&dailink_master_analog>;
+			frame-master = <&dailink_master_analog>;
+			mclk-fs = <256>;
+
+			dailink_master_analog: cpu {
+				sound-dai = <&ssp_dai0>;
+			};
+
+			codec {
+				sound-dai = <&cs4270>;
+			};
+		};
+
+		simple-audio-card,dai-link@1 {
+			reg = <1>;
+			format = "i2s";
+			bitclock-master = <&dailink_master_digital>;
+			frame-master = <&dailink_master_digital>;
+			mclk-fs = <256>;
+
+			dailink_master_digital: cpu {
+				sound-dai = <&ssp_dai1>;
+			};
+
+			codec {
+				sound-dai = <&ak4104>;
+			};
+		};
+	};
+};
+
+&ssp1 {
+	status = "okay";
+};
+
+&ssp2 {
+	status = "okay";
+};
+
+&rotary {
+	status = "disabled";
+};
+
+&spi {
+	ak4104: optical-transmitter@0 {
+		compatible = "asahi-kasei,ak4104";
+		reg = <0>;
+		vdd-supply = <&reg_3v3>;
+		spi-max-frequency = <5000000>;
+		reset-gpio = <&gpio 38 GPIO_ACTIVE_HIGH>;
+		#sound-dai-cells = <0>;
+	};
+};
+
+&pxai2c1 {
+	cs4270: codec@48 {
+		compatible = "cirrus,cs4270";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cs4270_pins>;
+		reg = <0x48>;
+		va-supply = <&reg_va_5v0>;
+		vd-supply = <&reg_3v3>;
+		vlc-supply = <&reg_3v3>;
+		reset-gpio = <&gpio 120 GPIO_ACTIVE_HIGH>;
+		#sound-dai-cells = <0>;
+	};
+};
+
+&pinctrl {
+	cs4270_pins: cs4270_pins {
+		pinctrl-single,pins = <
+			MFP_PIN_PXA300(120) MFP_AF0	/* RESET */
+		>;
+		pinctrl-single,low-power-mode = MFP_LPM(MFP_LPM_PULL_LOW);
+	};
+};

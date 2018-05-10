@@ -1,0 +1,9 @@
+/dts-v1/;
+
+#include "pxa300-raumfeld-speaker-s.dts"
+
+/ {
+	model = "Raumfeld Speaker M (PXA3xx)";
+	compatible = "raumfeld,raumfeld-speaker-m-pxa303", "marvell,pxa300";
+};
+
