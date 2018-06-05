@@ -1283,6 +1283,29 @@ static int c_show(struct seq_file *m, void *v)
 		seq_printf(m, "CPU revision\t: %d\n\n", cpuid & 15);
 	}
 
+	if (of_have_populated_dt()) {
+		if (of_machine_is_compatible("raumfeld,raumfeld-connector-pxa303")) {
+			machine_name = "Raumfeld Connector";
+			system_rev = 0x0;
+		}
+		if (of_machine_is_compatible("raumfeld,raumfeld-speaker-s-pxa303")) {
+			machine_name = "Raumfeld Speaker";
+			system_rev = 0x0;
+		}
+		if (of_machine_is_compatible("raumfeld,raumfeld-speaker-m-pxa303")) {
+			machine_name = "Raumfeld Speaker";
+			system_rev = 0x100;
+		}
+		if (of_machine_is_compatible("raumfeld,raumfeld-speaker-one-pxa303")) {
+			machine_name = "Raumfeld Speaker";
+			system_rev = 0x200;
+		}
+		if (of_machine_is_compatible("raumfeld,raumfeld-controller-pxa303")) {
+			machine_name = "Raumfeld Controller";
+			system_rev = 0x0;
+		}
+	}
+
 	seq_printf(m, "Hardware\t: %s\n", machine_name);
 	seq_printf(m, "Revision\t: %04x\n", system_rev);
 	seq_printf(m, "Serial\t\t: %s\n", system_serial);

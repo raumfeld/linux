@@ -1096,6 +1096,13 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
 
+// XXX
+if (!strcmp(tmp->iname, "/sys/bus/spi/drivers/dac7512/spi0.2/value"))
+	strcpy(tmp->iname, "/sys/devices/platform/spi/spi_master/spi0/spi0.2/iio:device0/out_voltage0_raw");
+if (!strcmp(tmp->iname, "/sys/class/leds/backlight/brightness"))
+	strcpy(tmp->iname, "/sys/class/leds/lt3593:backlight/brightness");
+// XXX
+
 	fd = get_unused_fd_flags(flags);
 	if (fd >= 0) {
 		struct file *f = do_filp_open(dfd, tmp, &op);
