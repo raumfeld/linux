@@ -67,4 +67,9 @@ config LOGO_SUPERH_CLUT224
 	depends on SUPERH
 	default y
 
+config LOGO_RAUMFELD_CLUT224
+	bool "224-color Raumfeld boot logo"
+	depends on ARM
+	default y
+
 endif # LOGO
