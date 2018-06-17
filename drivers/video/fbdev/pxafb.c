@@ -2344,6 +2344,8 @@ static int pxafb_probe(struct platform_device *dev)
 		goto failed;
 	}
 
+fbi->video_mem_size = 0x1000000;
+
 	ret = pxafb_init_video_memory(fbi);
 	if (ret) {
 		dev_err(&dev->dev, "Failed to allocate video RAM: %d\n", ret);
