@@ -178,34 +178,30 @@ static int scoop_resume(struct platform_device *dev)
 
 static int scoop_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct scoop_dev *devptr;
 	struct scoop_config *inf;
-	struct resource *mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	struct resource *mem;
 	int ret;
 
-	if (!mem)
-		return -EINVAL;
-
-	devptr = kzalloc(sizeof(struct scoop_dev), GFP_KERNEL);
+	devptr = devm_kzalloc(dev, sizeof(struct scoop_dev), GFP_KERNEL);
 	if (!devptr)
 		return -ENOMEM;
 
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	devptr->base = devm_ioremap_resource(dev, mem);
+	if (IS_ERR(devptr->base))
+		return PTR_ERR(devptr->base);
+
 	spin_lock_init(&devptr->scoop_lock);
-
-	inf = pdev->dev.platform_data;
-	devptr->base = ioremap(mem->start, resource_size(mem));
-
-	if (!devptr->base) {
-		ret = -ENOMEM;
-		goto err_ioremap;
-	}
-
 	platform_set_drvdata(pdev, devptr);
+	inf = dev->platform_data;
 
-	printk("Sharp Scoop Device found at 0x%08x -> 0x%8p\n",(unsigned int)mem->start, devptr->base);
+	dev_info(dev, "Sharp Scoop Device found at 0x%08x -> 0x%8p\n",
+		 (unsigned int)mem->start, devptr->base);
 
 	iowrite16(0x0140, devptr->base + SCOOP_MCR);
-	reset_scoop(&pdev->dev);
+	reset_scoop(dev);
 	iowrite16(0x0000, devptr->base + SCOOP_CPR);
 	iowrite16(inf->io_dir & 0xffff, devptr->base + SCOOP_GPCR);
 	iowrite16(inf->io_out & 0xffff, devptr->base + SCOOP_GPWR);
@@ -216,7 +212,7 @@ static int scoop_probe(struct platform_device *pdev)
 	devptr->gpio.base = -1;
 
 	if (inf->gpio_base != 0) {
-		devptr->gpio.label = dev_name(&pdev->dev);
+		devptr->gpio.label = dev_name(dev);
 		devptr->gpio.base = inf->gpio_base;
 		devptr->gpio.ngpio = 12; /* PA11 = 0, PA12 = 1, etc. up to PA22 = 11 */
 		devptr->gpio.set = scoop_gpio_set;
@@ -224,42 +220,16 @@ static int scoop_probe(struct platform_device *pdev)
 		devptr->gpio.direction_input = scoop_gpio_direction_input;
 		devptr->gpio.direction_output = scoop_gpio_direction_output;
 
-		ret = gpiochip_add_data(&devptr->gpio, devptr);
+		ret = devm_gpiochip_add_data(dev, &devptr->gpio, devptr);
 		if (ret)
-			goto err_gpio;
+			return ret;
 	}
-
-	return 0;
-
-err_gpio:
-	platform_set_drvdata(pdev, NULL);
-err_ioremap:
-	iounmap(devptr->base);
-	kfree(devptr);
-
-	return ret;
-}
-
-static int scoop_remove(struct platform_device *pdev)
-{
-	struct scoop_dev *sdev = platform_get_drvdata(pdev);
-
-	if (!sdev)
-		return -EINVAL;
-
-	if (sdev->gpio.base != -1)
-		gpiochip_remove(&sdev->gpio);
-
-	platform_set_drvdata(pdev, NULL);
-	iounmap(sdev->base);
-	kfree(sdev);
 
 	return 0;
 }
 
 static struct platform_driver scoop_driver = {
 	.probe		= scoop_probe,
-	.remove		= scoop_remove,
 	.suspend	= scoop_suspend,
 	.resume		= scoop_resume,
 	.driver		= {
