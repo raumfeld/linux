@@ -51,6 +51,7 @@ struct ssp_priv {
 	uint32_t	cr1;
 	uint32_t	to;
 	uint32_t	psp;
+	bool		suspended;
 #endif
 };
 
@@ -142,6 +143,9 @@ static int pxa_ssp_suspend(struct snd_soc_dai *cpu_dai)
 	struct ssp_priv *priv = snd_soc_dai_get_drvdata(cpu_dai);
 	struct ssp_device *ssp = priv->ssp;
 
+	if (priv->suspended)
+		return 0;
+
 	if (!cpu_dai->active)
 		clk_prepare_enable(ssp->clk);
 
@@ -152,6 +156,8 @@ static int pxa_ssp_suspend(struct snd_soc_dai *cpu_dai)
 
 	pxa_ssp_disable(ssp);
 	clk_disable_unprepare(ssp->clk);
+	priv->suspended = true;
+
 	return 0;
 }
 
@@ -160,6 +166,9 @@ static int pxa_ssp_resume(struct snd_soc_dai *cpu_dai)
 	struct ssp_priv *priv = snd_soc_dai_get_drvdata(cpu_dai);
 	struct ssp_device *ssp = priv->ssp;
 	uint32_t sssr = SSSR_ROR | SSSR_TUR | SSSR_BCE;
+
+	if (!priv->suspended)
+		return 0;
 
 	clk_prepare_enable(ssp->clk);
 
@@ -173,6 +182,8 @@ static int pxa_ssp_resume(struct snd_soc_dai *cpu_dai)
 		pxa_ssp_enable(ssp);
 	else
 		clk_disable_unprepare(ssp->clk);
+
+	priv->suspended = false;
 
 	return 0;
 }
