@@ -84,7 +84,6 @@ static int lis302dl_spi_probe(struct spi_device *spi)
 	lis3_dev.write		= lis3_spi_write;
 	lis3_dev.irq		= spi->irq;
 	lis3_dev.ac		= lis3lv02d_axis_normal;
-	lis3_dev.pdata		= spi->dev.platform_data;
 
 #ifdef CONFIG_OF
 	if (of_match_device(lis302dl_spi_dt_ids, &spi->dev)) {
@@ -114,7 +113,7 @@ static int lis3lv02d_spi_suspend(struct device *dev)
 	struct spi_device *spi = to_spi_device(dev);
 	struct lis3lv02d *lis3 = spi_get_drvdata(spi);
 
-	if (!lis3->pdata || !lis3->pdata->wakeup_flags)
+	if (!lis3->config || !lis3->config->wakeup_flags)
 		lis3lv02d_poweroff(&lis3_dev);
 
 	return 0;
@@ -125,7 +124,7 @@ static int lis3lv02d_spi_resume(struct device *dev)
 	struct spi_device *spi = to_spi_device(dev);
 	struct lis3lv02d *lis3 = spi_get_drvdata(spi);
 
-	if (!lis3->pdata || !lis3->pdata->wakeup_flags)
+	if (!lis3->config || !lis3->config->wakeup_flags)
 		lis3lv02d_poweron(lis3);
 
 	return 0;

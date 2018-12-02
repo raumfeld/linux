@@ -344,12 +344,12 @@ static int lis3lv02d_selftest(struct lis3lv02d *lis3, s16 results[3])
 		}
 	}
 
-	if (lis3->pdata) {
+	if (lis3->config) {
 		int i;
 		for (i = 0; i < 3; i++) {
 			/* Check against selftest acceptance limits */
-			if ((results[i] < lis3->pdata->st_min_limits[i]) ||
-			    (results[i] > lis3->pdata->st_max_limits[i])) {
+			if ((results[i] < lis3->config->st_min_limits[i]) ||
+			    (results[i] > lis3->config->st_max_limits[i])) {
 				ret = SELFTEST_FAIL;
 				goto fail;
 			}
@@ -418,7 +418,7 @@ int lis3lv02d_poweron(struct lis3lv02d *lis3)
 	 *      both have been read. So the value read will always be correct.
 	 * Set BOOT bit to refresh factory tuning values.
 	 */
-	if (lis3->pdata) {
+	if (lis3->config) {
 		lis3->read(lis3, CTRL_REG2, &reg);
 		if (lis3->whoami ==  WAI_12B)
 			reg |= CTRL2_BDU | CTRL2_BOOT;
@@ -468,7 +468,7 @@ static void lis3lv02d_joystick_open(struct input_polled_dev *pidev)
 	if (lis3->pm_dev)
 		pm_runtime_get_sync(lis3->pm_dev);
 
-	if (lis3->pdata && lis3->whoami == WAI_8B && lis3->idev)
+	if (lis3->config && lis3->whoami == WAI_8B && lis3->idev)
 		atomic_set(&lis3->wake_thread, 1);
 	/*
 	 * Update coordinates for the case where poll interval is 0 and
@@ -552,21 +552,6 @@ static irqreturn_t lis302dl_interrupt_thread1_8b(int irq, void *data)
 		lis302dl_interrupt_handle_click(lis3);
 	else if (unlikely(irq_cfg == LIS3_IRQ1_DATA_READY))
 		lis302dl_data_ready(lis3, IRQ_LINE0);
-	else
-		lis3lv02d_joystick_poll(lis3->idev);
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t lis302dl_interrupt_thread2_8b(int irq, void *data)
-{
-	struct lis3lv02d *lis3 = data;
-	u8 irq_cfg = lis3->irq_cfg & LIS3_IRQ2_MASK;
-
-	if (irq_cfg == LIS3_IRQ2_CLICK)
-		lis302dl_interrupt_handle_click(lis3);
-	else if (unlikely(irq_cfg == LIS3_IRQ2_DATA_READY))
-		lis302dl_data_ready(lis3, IRQ_LINE1);
 	else
 		lis3lv02d_joystick_poll(lis3->idev);
 
@@ -743,8 +728,6 @@ void lis3lv02d_joystick_disable(struct lis3lv02d *lis3)
 {
 	if (lis3->irq)
 		free_irq(lis3->irq, lis3);
-	if (lis3->pdata && lis3->pdata->irq2)
-		free_irq(lis3->pdata->irq2, lis3);
 
 	if (!lis3->idev)
 		return;
@@ -891,10 +874,9 @@ int lis3lv02d_remove_fs(struct lis3lv02d *lis3)
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_remove_fs);
 
-static void lis3lv02d_8b_configure(struct lis3lv02d *lis3,
-				struct lis3lv02d_platform_data *p)
+static void lis3lv02d_8b_configure(struct lis3lv02d *lis3)
 {
-	int err;
+	struct lis3lv02d_config *p = lis3->config;
 	int ctrl2 = p->hipass_ctrl;
 
 	if (p->click_flags) {
@@ -918,37 +900,26 @@ static void lis3lv02d_8b_configure(struct lis3lv02d *lis3,
 	if (p->wakeup_flags) {
 		lis3->write(lis3, FF_WU_CFG_1, p->wakeup_flags);
 		lis3->write(lis3, FF_WU_THS_1, p->wakeup_thresh & 0x7f);
-		/* pdata value + 1 to keep this backward compatible*/
+		/* config value + 1 to keep this backward compatible*/
 		lis3->write(lis3, FF_WU_DURATION_1, p->duration1 + 1);
-		ctrl2 ^= HP_FF_WU1; /* Xor to keep compatible with old pdata*/
+		ctrl2 ^= HP_FF_WU1; /* Xor to keep compatible with old config*/
 	}
 
 	if (p->wakeup_flags2) {
 		lis3->write(lis3, FF_WU_CFG_2, p->wakeup_flags2);
 		lis3->write(lis3, FF_WU_THS_2, p->wakeup_thresh2 & 0x7f);
-		/* pdata value + 1 to keep this backward compatible*/
+		/* config value + 1 to keep this backward compatible*/
 		lis3->write(lis3, FF_WU_DURATION_2, p->duration2 + 1);
-		ctrl2 ^= HP_FF_WU2; /* Xor to keep compatible with old pdata*/
+		ctrl2 ^= HP_FF_WU2; /* Xor to keep compatible with old config*/
 	}
 	/* Configure hipass filters */
 	lis3->write(lis3, CTRL_REG2, ctrl2);
-
-	if (p->irq2) {
-		err = request_threaded_irq(p->irq2,
-					NULL,
-					lis302dl_interrupt_thread2_8b,
-					IRQF_TRIGGER_RISING | IRQF_ONESHOT |
-					(p->irq_flags2 & IRQF_TRIGGER_MASK),
-					DRIVER_NAME, lis3);
-		if (err < 0)
-			pr_err("No second IRQ. Limited functionality\n");
-	}
 }
 
 #ifdef CONFIG_OF
 int lis3lv02d_init_dt(struct lis3lv02d *lis3)
 {
-	struct lis3lv02d_platform_data *pdata;
+	struct lis3lv02d_config *config;
 	struct device_node *np = lis3->of_node;
 	u32 val;
 	s32 sval;
@@ -956,149 +927,149 @@ int lis3lv02d_init_dt(struct lis3lv02d *lis3)
 	if (!lis3->of_node)
 		return 0;
 
-	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
+	config = kzalloc(sizeof(*config), GFP_KERNEL);
+	if (!config)
 		return -ENOMEM;
 
 	if (of_get_property(np, "st,click-single-x", NULL))
-		pdata->click_flags |= LIS3_CLICK_SINGLE_X;
+		config->click_flags |= LIS3_CLICK_SINGLE_X;
 	if (of_get_property(np, "st,click-double-x", NULL))
-		pdata->click_flags |= LIS3_CLICK_DOUBLE_X;
+		config->click_flags |= LIS3_CLICK_DOUBLE_X;
 
 	if (of_get_property(np, "st,click-single-y", NULL))
-		pdata->click_flags |= LIS3_CLICK_SINGLE_Y;
+		config->click_flags |= LIS3_CLICK_SINGLE_Y;
 	if (of_get_property(np, "st,click-double-y", NULL))
-		pdata->click_flags |= LIS3_CLICK_DOUBLE_Y;
+		config->click_flags |= LIS3_CLICK_DOUBLE_Y;
 
 	if (of_get_property(np, "st,click-single-z", NULL))
-		pdata->click_flags |= LIS3_CLICK_SINGLE_Z;
+		config->click_flags |= LIS3_CLICK_SINGLE_Z;
 	if (of_get_property(np, "st,click-double-z", NULL))
-		pdata->click_flags |= LIS3_CLICK_DOUBLE_Z;
+		config->click_flags |= LIS3_CLICK_DOUBLE_Z;
 
 	if (!of_property_read_u32(np, "st,click-threshold-x", &val))
-		pdata->click_thresh_x = val;
+		config->click_thresh_x = val;
 	if (!of_property_read_u32(np, "st,click-threshold-y", &val))
-		pdata->click_thresh_y = val;
+		config->click_thresh_y = val;
 	if (!of_property_read_u32(np, "st,click-threshold-z", &val))
-		pdata->click_thresh_z = val;
+		config->click_thresh_z = val;
 
 	if (!of_property_read_u32(np, "st,click-time-limit", &val))
-		pdata->click_time_limit = val;
+		config->click_time_limit = val;
 	if (!of_property_read_u32(np, "st,click-latency", &val))
-		pdata->click_latency = val;
+		config->click_latency = val;
 	if (!of_property_read_u32(np, "st,click-window", &val))
-		pdata->click_window = val;
+		config->click_window = val;
 
 	if (of_get_property(np, "st,irq1-disable", NULL))
-		pdata->irq_cfg |= LIS3_IRQ1_DISABLE;
+		config->irq_cfg |= LIS3_IRQ1_DISABLE;
 	if (of_get_property(np, "st,irq1-ff-wu-1", NULL))
-		pdata->irq_cfg |= LIS3_IRQ1_FF_WU_1;
+		config->irq_cfg |= LIS3_IRQ1_FF_WU_1;
 	if (of_get_property(np, "st,irq1-ff-wu-2", NULL))
-		pdata->irq_cfg |= LIS3_IRQ1_FF_WU_2;
+		config->irq_cfg |= LIS3_IRQ1_FF_WU_2;
 	if (of_get_property(np, "st,irq1-data-ready", NULL))
-		pdata->irq_cfg |= LIS3_IRQ1_DATA_READY;
+		config->irq_cfg |= LIS3_IRQ1_DATA_READY;
 	if (of_get_property(np, "st,irq1-click", NULL))
-		pdata->irq_cfg |= LIS3_IRQ1_CLICK;
+		config->irq_cfg |= LIS3_IRQ1_CLICK;
 
 	if (of_get_property(np, "st,irq2-disable", NULL))
-		pdata->irq_cfg |= LIS3_IRQ2_DISABLE;
+		config->irq_cfg |= LIS3_IRQ2_DISABLE;
 	if (of_get_property(np, "st,irq2-ff-wu-1", NULL))
-		pdata->irq_cfg |= LIS3_IRQ2_FF_WU_1;
+		config->irq_cfg |= LIS3_IRQ2_FF_WU_1;
 	if (of_get_property(np, "st,irq2-ff-wu-2", NULL))
-		pdata->irq_cfg |= LIS3_IRQ2_FF_WU_2;
+		config->irq_cfg |= LIS3_IRQ2_FF_WU_2;
 	if (of_get_property(np, "st,irq2-data-ready", NULL))
-		pdata->irq_cfg |= LIS3_IRQ2_DATA_READY;
+		config->irq_cfg |= LIS3_IRQ2_DATA_READY;
 	if (of_get_property(np, "st,irq2-click", NULL))
-		pdata->irq_cfg |= LIS3_IRQ2_CLICK;
+		config->irq_cfg |= LIS3_IRQ2_CLICK;
 
 	if (of_get_property(np, "st,irq-open-drain", NULL))
-		pdata->irq_cfg |= LIS3_IRQ_OPEN_DRAIN;
+		config->irq_cfg |= LIS3_IRQ_OPEN_DRAIN;
 	if (of_get_property(np, "st,irq-active-low", NULL))
-		pdata->irq_cfg |= LIS3_IRQ_ACTIVE_LOW;
+		config->irq_cfg |= LIS3_IRQ_ACTIVE_LOW;
 
 	if (!of_property_read_u32(np, "st,wu-duration-1", &val))
-		pdata->duration1 = val;
+		config->duration1 = val;
 	if (!of_property_read_u32(np, "st,wu-duration-2", &val))
-		pdata->duration2 = val;
+		config->duration2 = val;
 
 	if (of_get_property(np, "st,wakeup-x-lo", NULL))
-		pdata->wakeup_flags |= LIS3_WAKEUP_X_LO;
+		config->wakeup_flags |= LIS3_WAKEUP_X_LO;
 	if (of_get_property(np, "st,wakeup-x-hi", NULL))
-		pdata->wakeup_flags |= LIS3_WAKEUP_X_HI;
+		config->wakeup_flags |= LIS3_WAKEUP_X_HI;
 	if (of_get_property(np, "st,wakeup-y-lo", NULL))
-		pdata->wakeup_flags |= LIS3_WAKEUP_Y_LO;
+		config->wakeup_flags |= LIS3_WAKEUP_Y_LO;
 	if (of_get_property(np, "st,wakeup-y-hi", NULL))
-		pdata->wakeup_flags |= LIS3_WAKEUP_Y_HI;
+		config->wakeup_flags |= LIS3_WAKEUP_Y_HI;
 	if (of_get_property(np, "st,wakeup-z-lo", NULL))
-		pdata->wakeup_flags |= LIS3_WAKEUP_Z_LO;
+		config->wakeup_flags |= LIS3_WAKEUP_Z_LO;
 	if (of_get_property(np, "st,wakeup-z-hi", NULL))
-		pdata->wakeup_flags |= LIS3_WAKEUP_Z_HI;
+		config->wakeup_flags |= LIS3_WAKEUP_Z_HI;
 	if (of_get_property(np, "st,wakeup-threshold", &val))
-		pdata->wakeup_thresh = val;
+		config->wakeup_thresh = val;
 
 	if (of_get_property(np, "st,wakeup2-x-lo", NULL))
-		pdata->wakeup_flags2 |= LIS3_WAKEUP_X_LO;
+		config->wakeup_flags2 |= LIS3_WAKEUP_X_LO;
 	if (of_get_property(np, "st,wakeup2-x-hi", NULL))
-		pdata->wakeup_flags2 |= LIS3_WAKEUP_X_HI;
+		config->wakeup_flags2 |= LIS3_WAKEUP_X_HI;
 	if (of_get_property(np, "st,wakeup2-y-lo", NULL))
-		pdata->wakeup_flags2 |= LIS3_WAKEUP_Y_LO;
+		config->wakeup_flags2 |= LIS3_WAKEUP_Y_LO;
 	if (of_get_property(np, "st,wakeup2-y-hi", NULL))
-		pdata->wakeup_flags2 |= LIS3_WAKEUP_Y_HI;
+		config->wakeup_flags2 |= LIS3_WAKEUP_Y_HI;
 	if (of_get_property(np, "st,wakeup2-z-lo", NULL))
-		pdata->wakeup_flags2 |= LIS3_WAKEUP_Z_LO;
+		config->wakeup_flags2 |= LIS3_WAKEUP_Z_LO;
 	if (of_get_property(np, "st,wakeup2-z-hi", NULL))
-		pdata->wakeup_flags2 |= LIS3_WAKEUP_Z_HI;
+		config->wakeup_flags2 |= LIS3_WAKEUP_Z_HI;
 	if (of_get_property(np, "st,wakeup2-threshold", &val))
-		pdata->wakeup_thresh2 = val;
+		config->wakeup_thresh2 = val;
 
 	if (!of_property_read_u32(np, "st,highpass-cutoff-hz", &val)) {
 		switch (val) {
 		case 1:
-			pdata->hipass_ctrl = LIS3_HIPASS_CUTFF_1HZ;
+			config->hipass_ctrl = LIS3_HIPASS_CUTFF_1HZ;
 			break;
 		case 2:
-			pdata->hipass_ctrl = LIS3_HIPASS_CUTFF_2HZ;
+			config->hipass_ctrl = LIS3_HIPASS_CUTFF_2HZ;
 			break;
 		case 4:
-			pdata->hipass_ctrl = LIS3_HIPASS_CUTFF_4HZ;
+			config->hipass_ctrl = LIS3_HIPASS_CUTFF_4HZ;
 			break;
 		case 8:
-			pdata->hipass_ctrl = LIS3_HIPASS_CUTFF_8HZ;
+			config->hipass_ctrl = LIS3_HIPASS_CUTFF_8HZ;
 			break;
 		}
 	}
 
 	if (of_get_property(np, "st,hipass1-disable", NULL))
-		pdata->hipass_ctrl |= LIS3_HIPASS1_DISABLE;
+		config->hipass_ctrl |= LIS3_HIPASS1_DISABLE;
 	if (of_get_property(np, "st,hipass2-disable", NULL))
-		pdata->hipass_ctrl |= LIS3_HIPASS2_DISABLE;
+		config->hipass_ctrl |= LIS3_HIPASS2_DISABLE;
 
 	if (of_property_read_s32(np, "st,axis-x", &sval) == 0)
-		pdata->axis_x = sval;
+		config->axis_x = sval;
 	if (of_property_read_s32(np, "st,axis-y", &sval) == 0)
-		pdata->axis_y = sval;
+		config->axis_y = sval;
 	if (of_property_read_s32(np, "st,axis-z", &sval) == 0)
-		pdata->axis_z = sval;
+		config->axis_z = sval;
 
 	if (of_get_property(np, "st,default-rate", NULL))
-		pdata->default_rate = val;
+		config->default_rate = val;
 
 	if (of_property_read_s32(np, "st,min-limit-x", &sval) == 0)
-		pdata->st_min_limits[0] = sval;
+		config->st_min_limits[0] = sval;
 	if (of_property_read_s32(np, "st,min-limit-y", &sval) == 0)
-		pdata->st_min_limits[1] = sval;
+		config->st_min_limits[1] = sval;
 	if (of_property_read_s32(np, "st,min-limit-z", &sval) == 0)
-		pdata->st_min_limits[2] = sval;
+		config->st_min_limits[2] = sval;
 
 	if (of_property_read_s32(np, "st,max-limit-x", &sval) == 0)
-		pdata->st_max_limits[0] = sval;
+		config->st_max_limits[0] = sval;
 	if (of_property_read_s32(np, "st,max-limit-y", &sval) == 0)
-		pdata->st_max_limits[1] = sval;
+		config->st_max_limits[1] = sval;
 	if (of_property_read_s32(np, "st,max-limit-z", &sval) == 0)
-		pdata->st_max_limits[2] = sval;
+		config->st_max_limits[2] = sval;
 
 
-	lis3->pdata = pdata;
+	lis3->config = config;
 
 	return 0;
 }
@@ -1119,7 +1090,6 @@ int lis3lv02d_init_device(struct lis3lv02d *lis3)
 {
 	int err;
 	irq_handler_t thread_fn;
-	int irq_flags = 0;
 
 	lis3->whoami = lis3lv02d_read_8(lis3, WHO_AM_I);
 
@@ -1198,20 +1168,18 @@ int lis3lv02d_init_device(struct lis3lv02d *lis3)
 
 	/* passing in platform specific data is purely optional and only
 	 * used by the SPI transport layer at the moment */
-	if (lis3->pdata) {
-		struct lis3lv02d_platform_data *p = lis3->pdata;
+	if (lis3->config) {
+		struct lis3lv02d_config *c = lis3->config;
 
 		if (lis3->whoami == WAI_8B)
-			lis3lv02d_8b_configure(lis3, p);
+			lis3lv02d_8b_configure(lis3);
 
-		irq_flags = p->irq_flags1 & IRQF_TRIGGER_MASK;
+		lis3->irq_cfg = c->irq_cfg;
+		if (c->irq_cfg)
+			lis3->write(lis3, CTRL_REG3, c->irq_cfg);
 
-		lis3->irq_cfg = p->irq_cfg;
-		if (p->irq_cfg)
-			lis3->write(lis3, CTRL_REG3, p->irq_cfg);
-
-		if (p->default_rate)
-			lis3lv02d_set_odr(lis3, p->default_rate);
+		if (c->default_rate)
+			lis3lv02d_set_odr(lis3, c->default_rate);
 	}
 
 	/* bail if we did not get an IRQ from the bus layer */
@@ -1231,15 +1199,14 @@ int lis3lv02d_init_device(struct lis3lv02d *lis3)
 	 * io-apic is not configurable (and generates a warning) but I keep it
 	 * in case of support for other hardware.
 	 */
-	if (lis3->pdata && lis3->whoami == WAI_8B)
+	if (lis3->config && lis3->whoami == WAI_8B)
 		thread_fn = lis302dl_interrupt_thread1_8b;
 	else
 		thread_fn = NULL;
 
 	err = request_threaded_irq(lis3->irq, lis302dl_interrupt,
 				thread_fn,
-				IRQF_TRIGGER_RISING | IRQF_ONESHOT |
-				irq_flags,
+				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 				DRIVER_NAME, lis3);
 
 	if (err < 0) {
