@@ -117,6 +117,7 @@ static void eeti_ts_start(struct eeti_ts *eeti)
 	eeti->running = true;
 	wmb();
 	enable_irq(eeti->client->irq);
+	eeti_ts_read(eeti);
 }
 
 static void eeti_ts_stop(struct eeti_ts *eeti)
