@@ -41,6 +41,7 @@ struct eeti_ts {
 	struct input_dev *input;
 	struct gpio_desc *attn_gpio;
 	struct touchscreen_properties props;
+	struct mutex mutex;
 	bool running;
 };
 
@@ -80,6 +81,8 @@ static void eeti_ts_read(struct eeti_ts *eeti)
 	int len, error;
 	char buf[6];
 
+	mutex_lock(&eeti->mutex);
+
 	do {
 		len = i2c_master_recv(eeti->client, buf, sizeof(buf));
 		if (len != sizeof(buf)) {
@@ -95,6 +98,8 @@ static void eeti_ts_read(struct eeti_ts *eeti)
 			eeti_ts_report_event(eeti, buf);
 	} while (eeti->running &&
 		 eeti->attn_gpio && gpiod_get_value_cansleep(eeti->attn_gpio));
+
+	mutex_unlock(&eeti->mutex);
 }
 
 static irqreturn_t eeti_ts_isr(int irq, void *dev_id)
@@ -111,6 +116,9 @@ static void eeti_ts_start(struct eeti_ts *eeti)
 	eeti->running = true;
 	wmb();
 	enable_irq(eeti->client->irq);
+
+	if (eeti->attn_gpio && gpiod_get_value_cansleep(eeti->attn_gpio))
+		eeti_ts_read(eeti);
 }
 
 static void eeti_ts_stop(struct eeti_ts *eeti)
@@ -156,6 +164,8 @@ static int eeti_ts_probe(struct i2c_client *client,
 		dev_err(dev, "failed to allocate driver data\n");
 		return -ENOMEM;
 	}
+
+	mutex_init(&eeti->mutex);
 
 	input = devm_input_allocate_device(dev);
 	if (!input) {
