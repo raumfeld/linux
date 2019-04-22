@@ -75,11 +75,9 @@ static void eeti_ts_report_event(struct eeti_ts *eeti, u8 *buf)
 	input_sync(eeti->input);
 }
 
-static irqreturn_t eeti_ts_isr(int irq, void *dev_id)
+static void eeti_ts_read(struct eeti_ts *eeti)
 {
-	struct eeti_ts *eeti = dev_id;
-	int len;
-	int error;
+	int len, error;
 	char buf[6];
 
 	do {
@@ -92,12 +90,18 @@ static irqreturn_t eeti_ts_isr(int irq, void *dev_id)
 			break;
 		}
 
-		if (buf[0] & 0x80) {
-			/* Motion packet */
+		/* Motion packet */
+		if (buf[0] & 0x80)
 			eeti_ts_report_event(eeti, buf);
-		}
 	} while (eeti->running &&
 		 eeti->attn_gpio && gpiod_get_value_cansleep(eeti->attn_gpio));
+}
+
+static irqreturn_t eeti_ts_isr(int irq, void *dev_id)
+{
+	struct eeti_ts *eeti = dev_id;
+
+	eeti_ts_read(eeti);
 
 	return IRQ_HANDLED;
 }
